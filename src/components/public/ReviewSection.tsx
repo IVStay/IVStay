@@ -13,12 +13,15 @@ export const ReviewSection: React.FC<ReviewSectionProps> = ({
   reviewCount,
   reviews,
 }) => {
+  // Average each sub-rating across the actual reviews
+  const average = (key: keyof ReviewSubRatings) =>
+    reviews.length ? reviews.reduce((sum, r) => sum + (r.sub_ratings?.[key] || 0), 0) / reviews.length : 0;
   const avgSubRatings: ReviewSubRatings = {
-    cleanliness: 4.98,
-    accuracy: 4.95,
-    communication: 4.97,
-    location: 4.99,
-    value: 4.90,
+    cleanliness: average('cleanliness'),
+    accuracy: average('accuracy'),
+    communication: average('communication'),
+    location: average('location'),
+    value: average('value'),
   };
 
   const categories = [

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useProperties } from '../context/PropertyContext';
 import { PropertyCard } from '../components/public/PropertyCard';
@@ -6,6 +6,7 @@ import { InteractiveMap } from '../components/public/InteractiveMap';
 import { CategoryFilterBar } from '../components/public/CategoryFilterBar';
 import { LayoutGrid, Map, SlidersHorizontal, Sparkles, Building2, RotateCcw, Check, Search } from 'lucide-react';
 import { Button } from '../components/ui/Button';
+import { formatINR } from '../utils/currency';
 
 interface ListingsPageProps {
   defaultCategory?: 'all' | 'bnbs_and_villas' | 'hotels' | 'home_stays';
@@ -15,8 +16,27 @@ export const ListingsPage: React.FC<ListingsPageProps> = ({ defaultCategory = 'a
   const { properties, filterState, setFilterState, resetFilters } = useProperties();
   const [searchParams] = useSearchParams();
 
-  const urlCategory = searchParams.get('category') as 'all' | 'bnbs_and_villas' | 'hotels' | 'home_stays' | null;
+  const categoryParam = searchParams.get('category');
+  const urlCategory = (['all', 'bnbs_and_villas', 'hotels', 'home_stays'] as const).find((c) => c === categoryParam) ?? null;
   const urlDestination = searchParams.get('destination');
+  const urlGuests = searchParams.get('guests');
+
+  // Apply URL search parameters (e.g. from the home page search box) to the shared filters,
+  // so the on-page controls can still change them afterwards.
+  useEffect(() => {
+    setFilterState((prev) => ({
+      ...prev,
+      destination: urlDestination ?? prev.destination,
+      guests: urlGuests !== null ? Math.max(1, parseInt(urlGuests, 10) || 1) : prev.guests,
+      category: urlCategory ?? prev.category,
+    }));
+  }, [urlDestination, urlGuests, urlCategory, setFilterState]);
+
+  // The price slider's top end follows the most expensive stay; the top position means "no limit".
+  const highestPrice = properties.reduce((max, p) => Math.max(max, p.price_per_night || 0), 0);
+  const priceCeiling = Math.max(10000, Math.ceil(highestPrice / 5000) * 5000);
+  const sliderValue = Math.min(filterState.priceRange[1], priceCeiling);
+  const maxPrice = sliderValue >= priceCeiling ? Infinity : sliderValue;
 
   const [viewMode, setViewMode] = useState<'grid' | 'split'>('grid');
   const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false);
@@ -24,13 +44,13 @@ export const ListingsPage: React.FC<ListingsPageProps> = ({ defaultCategory = 'a
   // Filter properties logic
   const filteredProperties = properties.filter((p) => {
     // Category filter
-    const activeCat = urlCategory || (defaultCategory !== 'all' ? defaultCategory : filterState.category);
+    const activeCat = defaultCategory !== 'all' ? defaultCategory : filterState.category;
     if (activeCat !== 'all' && p.category !== activeCat) {
       return false;
     }
 
     // Destination filter
-    const activeDest = urlDestination || filterState.destination;
+    const activeDest = filterState.destination.trim();
     if (activeDest) {
       const match =
         p.city.toLowerCase().includes(activeDest.toLowerCase()) ||
@@ -39,8 +59,11 @@ export const ListingsPage: React.FC<ListingsPageProps> = ({ defaultCategory = 'a
       if (!match) return false;
     }
 
+    // Guests
+    if (filterState.guests > 1 && p.max_guests < filterState.guests) return false;
+
     // Price range
-    if (p.price_per_night < filterState.priceRange[0] || p.price_per_night > filterState.priceRange[1]) {
+    if (p.price_per_night < filterState.priceRange[0] || p.price_per_night > maxPrice) {
       return false;
     }
 
@@ -81,7 +104,7 @@ export const ListingsPage: React.FC<ListingsPageProps> = ({ defaultCategory = 'a
             {defaultCategory === 'hotels' ? 'Luxury Boutique Hotels' : defaultCategory === 'home_stays' ? 'Home Stays' : defaultCategory === 'bnbs_and_villas' ? 'Villas & Boutique BnBs' : 'All Luxury Stays'}
           </h1>
           <p className="text-xs text-slate-500 mt-1">
-            Showing {filteredProperties.length} verified stays available for immediate booking
+            Showing {filteredProperties.length} stay{filteredProperties.length === 1 ? '' : 's'}
           </p>
         </div>
 
@@ -95,7 +118,7 @@ export const ListingsPage: React.FC<ListingsPageProps> = ({ defaultCategory = 'a
                   setFilterState((prev) => ({ ...prev, category: 'all' }))
                 }
                 className={`px-3 py-1.5 rounded-full text-xs font-bold transition-colors ${
-                  filterState.category === 'all' && !urlCategory
+                  filterState.category === 'all'
                     ? 'bg-white text-brand-slate shadow-sm'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
@@ -107,7 +130,7 @@ export const ListingsPage: React.FC<ListingsPageProps> = ({ defaultCategory = 'a
                   setFilterState((prev) => ({ ...prev, category: 'bnbs_and_villas' }))
                 }
                 className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-bold transition-colors ${
-                  (filterState.category === 'bnbs_and_villas' || urlCategory === 'bnbs_and_villas')
+                  filterState.category === 'bnbs_and_villas'
                     ? 'bg-white text-brand-slate shadow-sm'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
@@ -120,7 +143,7 @@ export const ListingsPage: React.FC<ListingsPageProps> = ({ defaultCategory = 'a
                   setFilterState((prev) => ({ ...prev, category: 'hotels' }))
                 }
                 className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-bold transition-colors ${
-                  (filterState.category === 'hotels' || urlCategory === 'hotels')
+                  filterState.category === 'hotels'
                     ? 'bg-white text-brand-slate shadow-sm'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
@@ -133,7 +156,7 @@ export const ListingsPage: React.FC<ListingsPageProps> = ({ defaultCategory = 'a
                   setFilterState((prev) => ({ ...prev, category: 'home_stays' }))
                 }
                 className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-bold transition-colors ${
-                  (filterState.category === 'home_stays' || urlCategory === 'home_stays')
+                  filterState.category === 'home_stays'
                     ? 'bg-white text-brand-slate shadow-sm'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
@@ -218,18 +241,18 @@ export const ListingsPage: React.FC<ListingsPageProps> = ({ defaultCategory = 'a
             {/* Price Slider */}
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
-                Nightly Price Range: ₹{filterState.priceRange[0]} - ₹{filterState.priceRange[1]}
+                Max nightly price: {maxPrice === Infinity ? 'Any' : formatINR(sliderValue)}
               </label>
               <input
                 type="range"
                 min="0"
-                max="5000"
-                step="100"
-                value={filterState.priceRange[1]}
+                max={priceCeiling}
+                step="500"
+                value={sliderValue}
                 onChange={(e) =>
                   setFilterState((prev) => ({
                     ...prev,
-                    priceRange: [prev.priceRange[0], parseInt(e.target.value)],
+                    priceRange: [prev.priceRange[0], parseInt(e.target.value, 10)],
                   }))
                 }
                 className="w-full accent-brand-gold cursor-pointer"

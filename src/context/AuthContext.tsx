@@ -20,9 +20,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(() => {
     try {
       const saved = localStorage.getItem(USER_STORAGE_KEY);
-      return saved ? JSON.parse(saved) : INITIAL_GUEST_USER;
+      // Visitors start signed out (previously everyone was auto-signed-in as a demo guest)
+      return saved ? JSON.parse(saved) : null;
     } catch {
-      return INITIAL_GUEST_USER;
+      return null;
     }
   });
 

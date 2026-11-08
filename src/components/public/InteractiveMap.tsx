@@ -2,13 +2,16 @@ import React, { useState } from 'react';
 import { Property } from '../../types';
 import { MapPin, Star, Sparkles, Navigation } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { formatINR } from '../../utils/currency';
 
 interface InteractiveMapProps {
   properties: Property[];
 }
 
 export const InteractiveMap: React.FC<InteractiveMapProps> = ({ properties }) => {
-  const [selectedProp, setSelectedProp] = useState<Property | null>(properties[0] || null);
+  const [selectedId, setSelectedId] = useState<string | null>(properties[0]?.id || null);
+  // Fall back to the first result when the selected stay is filtered out
+  const selectedProp = properties.find((p) => p.id === selectedId) || properties[0] || null;
 
   return (
     <div className="relative w-full h-[650px] bg-slate-900 rounded-3xl overflow-hidden border border-slate-800 shadow-xl flex flex-col justify-between p-6">
@@ -35,7 +38,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({ properties }) =>
           return (
             <div
               key={prop.id}
-              onClick={() => setSelectedProp(prop)}
+              onClick={() => setSelectedId(prop.id)}
               className={`cursor-pointer transition-all duration-300 transform hover:scale-110 flex flex-col items-center justify-center ${
                 isSelected ? 'z-30 scale-110' : 'z-10 opacity-90'
               }`}
@@ -49,7 +52,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({ properties }) =>
                 }`}
               >
                 <MapPin className="w-3.5 h-3.5 text-amber-300" />
-                <span>${prop.price_per_night}</span>
+                <span>{formatINR(prop.price_per_night)}</span>
               </div>
               <span className="text-[10px] text-slate-400 bg-black/60 px-2 py-0.5 rounded-full mt-1 backdrop-blur-sm truncate max-w-[120px]">
                 {prop.city}
@@ -85,12 +88,12 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({ properties }) =>
               <div className="flex items-center gap-2 text-xs text-slate-400 mt-1">
                 <div className="flex items-center gap-1 font-bold text-amber-400">
                   <Star className="w-3.5 h-3.5 fill-amber-400" />
-                  <span>{selectedProp.rating.toFixed(2)}</span>
+                  <span>{selectedProp.review_count > 0 ? selectedProp.rating.toFixed(2) : 'New'}</span>
                 </div>
                 <span>•</span>
                 <span>{selectedProp.bedrooms} Bedrooms</span>
                 <span>•</span>
-                <span className="text-white font-bold">${selectedProp.price_per_night}/night</span>
+                <span className="text-white font-bold">{formatINR(selectedProp.price_per_night)}/night</span>
               </div>
             </div>
           </div>

@@ -22,7 +22,10 @@
 
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["partner_frontend/src/*"],
+      "@src/*": ["src/*"],
+      "next/image": ["src/shims/next-image.tsx"],
+      "next/link": ["src/shims/next-link.tsx"]
     }
   },
   "include": ["src"]

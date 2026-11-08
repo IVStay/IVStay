@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useProperties } from '../context/PropertyContext';
 import { useBookings } from '../context/BookingContext';
 import { useToast } from '../context/ToastContext';
@@ -8,6 +8,8 @@ import { ReviewSection } from '../components/public/ReviewSection';
 import { MOCK_REVIEWS } from '../data/mockData';
 import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
+import { whatsappLink } from '../config/contact';
+import { formatINR } from '../utils/currency';
 import {
   MapPin,
   Star,
@@ -32,19 +34,29 @@ import { format, differenceInCalendarDays, addDays, parseISO } from 'date-fns';
 export const PropertyDetailsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { getPropertyById, isWishlisted, toggleWishlist } = useProperties();
   const { setDraftBooking } = useBookings();
   const { showSuccess, showInfo } = useToast();
 
   const property = getPropertyById(id || '');
 
-  const [checkIn, setCheckIn] = useState<string>(
-    format(addDays(new Date(), 2), 'yyyy-MM-dd')
-  );
-  const [checkOut, setCheckOut] = useState<string>(
-    format(addDays(new Date(), 6), 'yyyy-MM-dd')
-  );
-  const [adults, setAdults] = useState(2);
+  // Pre-fill dates/guests from the search (?checkIn=YYYY-MM-DD&checkOut=YYYY-MM-DD&guests=N), else defaults.
+  const today = format(new Date(), 'yyyy-MM-dd');
+  const minNights = Math.max(1, property?.min_nights || 1);
+  const isIsoDate = (v: string | null): v is string => !!v && /^\d{4}-\d{2}-\d{2}$/.test(v);
+  const urlCheckIn = searchParams.get('checkIn');
+  const urlCheckOut = searchParams.get('checkOut');
+  const initialCheckIn =
+    isIsoDate(urlCheckIn) && urlCheckIn >= today ? urlCheckIn : format(addDays(new Date(), 2), 'yyyy-MM-dd');
+  const initialCheckOut =
+    isIsoDate(urlCheckOut) && urlCheckOut > initialCheckIn
+      ? urlCheckOut
+      : format(addDays(parseISO(initialCheckIn), Math.max(2, minNights)), 'yyyy-MM-dd');
+
+  const [checkIn, setCheckIn] = useState<string>(initialCheckIn);
+  const [checkOut, setCheckOut] = useState<string>(initialCheckOut);
+  const [adults, setAdults] = useState(() => Math.max(1, parseInt(searchParams.get('guests') || '', 10) || 2));
   const [children, setChildren] = useState(0);
   const [pets, setPets] = useState(0);
   const [isGuestPickerOpen, setIsGuestPickerOpen] = useState(false);
@@ -64,8 +76,11 @@ export const PropertyDetailsPage: React.FC = () => {
   const favorited = isWishlisted(property.id);
 
   // Date calculations & itemized price breakdown
-  const numNights = Math.max(1, differenceInCalendarDays(parseISO(checkOut), parseISO(checkIn)));
+  const rawNights = differenceInCalendarDays(parseISO(checkOut), parseISO(checkIn));
+  const numNights = Number.isFinite(rawNights) ? Math.max(1, rawNights) : 1;
   const totalGuests = adults + children;
+  const propertyReviews = MOCK_REVIEWS.filter((r) => r.property_id === property.id);
+  const hasRating = property.review_count > 0;
 
   const baseNightlyTotal = property.price_per_night * numNights;
   const cleaningFee = property.cleaning_fee;
@@ -86,9 +101,32 @@ export const PropertyDetailsPage: React.FC = () => {
     showSuccess('Link Copied!', 'Listing link copied to clipboard');
   };
 
+  const handleCheckInChange = (value: string) => {
+    setCheckIn(value);
+    // Keep check-out after check-in (and at least the minimum stay)
+    if (value && checkOut <= value) {
+      setCheckOut(format(addDays(parseISO(value), minNights), 'yyyy-MM-dd'));
+    }
+  };
+
   const handleReserveClick = () => {
-    const whatsappText = `Hi, I want to reserve ${property.title} in ${property.city} for my upcoming stay.`;
-    window.open(`https://wa.me/919999999999?text=${encodeURIComponent(whatsappText)}`, '_blank');
+    const message = [
+      `Hi IvStay, I'd like to book ${property.title} (${property.city}).`,
+      `Check-in: ${checkIn}`,
+      `Check-out: ${checkOut} (${numNights} night${numNights > 1 ? 's' : ''})`,
+      `Guests: ${totalGuests}`,
+      `Estimated total: ${formatINR(grandTotal)}`,
+      `Link: ${window.location.origin}/stays/${property.id}`,
+    ].join('\n');
+    window.open(whatsappLink(message), '_blank', 'noopener');
+  };
+
+  const handleContactClick = () => {
+    window.open(
+      whatsappLink(`Hi IvStay, I have a question about ${property.title} (${property.city}).`),
+      '_blank',
+      'noopener'
+    );
   };
 
   return (
@@ -142,8 +180,14 @@ export const PropertyDetailsPage: React.FC = () => {
         <div className="flex flex-wrap items-center gap-4 text-xs font-medium text-slate-600">
           <div className="flex items-center gap-1 font-bold text-brand-slate">
             <Star className="w-4 h-4 fill-brand-gold text-brand-gold" />
-            <span>{property.rating.toFixed(2)}</span>
-            <span className="text-slate-400 font-normal">({property.review_count} reviews)</span>
+            {hasRating ? (
+              <>
+                <span>{property.rating.toFixed(2)}</span>
+                <span className="text-slate-400 font-normal">({property.review_count} reviews)</span>
+              </>
+            ) : (
+              <span>New listing</span>
+            )}
           </div>
           <span>•</span>
           <div className="flex items-center gap-1">
@@ -176,30 +220,21 @@ export const PropertyDetailsPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Dedicated Luxury Highlights */}
-          <div className="space-y-4 pt-4 border-t border-slate-200">
-            <h3 className="font-serif text-xl font-bold text-brand-slate">Stay Highlights</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="flex items-start gap-3 p-4 bg-amber-50/60 rounded-2xl border border-amber-200/60">
-                <ChefHat className="w-5 h-5 text-brand-gold shrink-0 mt-0.5" />
-                <div>
-                  <h4 className="text-xs font-bold text-brand-slate">In-Villa Butler & Chef Available</h4>
-                  <p className="text-[11px] text-slate-500 mt-0.5">
-                    Personal culinary services tailored to your taste profile.
-                  </p>
-                </div>
-              </div>
+          {/* Highlights: only claims that apply to every verified listing */}
+          {property.is_verified && (
+            <div className="space-y-4 pt-4 border-t border-slate-200">
+              <h3 className="font-serif text-xl font-bold text-brand-slate">Stay Highlights</h3>
               <div className="flex items-start gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-100">
                 <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
                 <div>
                   <h4 className="text-xs font-bold text-brand-slate">IvStay Verified Standard</h4>
                   <p className="text-[11px] text-slate-500 mt-0.5">
-                    Inspected for high-speed fiber internet & acoustic privacy.
+                    Reviewed by the IvStay team before it goes live on the site.
                   </p>
                 </div>
               </div>
             </div>
-          </div>
+          )}
 
           {/* Detailed Description */}
           <div className="space-y-3 pt-4 border-t border-slate-200">
@@ -225,47 +260,52 @@ export const PropertyDetailsPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Host Profile Card */}
+          {/* Host / contact card */}
           <div className="p-6 bg-slate-900 text-white rounded-3xl space-y-4 border border-slate-800 shadow-xl">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="flex items-center gap-4">
-                <img
-                  src={
-                    property.host_avatar ||
-                    'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80'
-                  }
-                  alt={property.host_name}
-                  className="w-14 h-14 rounded-full object-cover ring-2 ring-brand-gold"
-                />
+                {property.host_avatar ? (
+                  <img
+                    src={property.host_avatar}
+                    alt={property.host_name || 'Host'}
+                    className="w-14 h-14 rounded-full object-cover ring-2 ring-brand-gold"
+                  />
+                ) : (
+                  <div className="w-14 h-14 rounded-full bg-brand-gold text-white flex items-center justify-center font-serif font-bold text-xl shrink-0">
+                    Iv
+                  </div>
+                )}
                 <div>
                   <h4 className="font-serif text-lg font-bold flex items-center gap-1.5">
-                    Hosted by {property.host_name || 'Gianluca Rossi'}
-                    <CheckCircle className="w-4 h-4 text-brand-gold fill-brand-gold/20" />
+                    {property.host_name ? `Hosted by ${property.host_name}` : 'Questions about this stay?'}
+                    {property.host_name && <CheckCircle className="w-4 h-4 text-brand-gold fill-brand-gold/20" />}
                   </h4>
-                  <p className="text-xs text-amber-300 font-semibold">{property.host_joined}</p>
+                  <p className="text-xs text-amber-300 font-semibold">
+                    {property.host_joined || 'The IvStay team replies on WhatsApp.'}
+                  </p>
                 </div>
               </div>
 
               <Button
-                onClick={() =>
-                  showSuccess('Message Sent to Host', 'Gianluca will reply within 15 minutes')
-                }
+                onClick={handleContactClick}
                 variant="gold"
                 size="sm"
-                className="flex items-center gap-1.5"
+                className="flex items-center gap-1.5 shrink-0"
               >
                 <MessageSquare className="w-3.5 h-3.5" />
-                Contact Host
+                Ask on WhatsApp
               </Button>
             </div>
           </div>
 
-          {/* Reviews Breakdown Section */}
-          <ReviewSection
-            rating={property.rating}
-            reviewCount={property.review_count}
-            reviews={MOCK_REVIEWS}
-          />
+          {/* Reviews: only shown once real reviews exist for this stay */}
+          {propertyReviews.length > 0 && (
+            <ReviewSection
+              rating={property.rating}
+              reviewCount={property.review_count}
+              reviews={propertyReviews}
+            />
+          )}
         </div>
 
         {/* Right Dynamic Sticky Reservation Card */}
@@ -275,13 +315,13 @@ export const PropertyDetailsPage: React.FC = () => {
             <div className="flex items-baseline justify-between pb-4 border-b border-slate-100">
               <div>
                 <span className="font-serif text-3xl font-extrabold text-brand-slate">
-                  ₹{property.price_per_night.toLocaleString()}
+                  {formatINR(property.price_per_night)}
                 </span>
                 <span className="text-xs text-slate-500 font-medium"> / night</span>
               </div>
               <div className="flex items-center gap-1 text-xs font-bold text-brand-slate">
                 <Star className="w-3.5 h-3.5 fill-brand-gold text-brand-gold" />
-                <span>{property.rating.toFixed(2)}</span>
+                <span>{hasRating ? property.rating.toFixed(2) : 'New'}</span>
               </div>
             </div>
 
@@ -295,7 +335,8 @@ export const PropertyDetailsPage: React.FC = () => {
                   <input
                     type="date"
                     value={checkIn}
-                    onChange={(e) => setCheckIn(e.target.value)}
+                    min={today}
+                    onChange={(e) => handleCheckInChange(e.target.value)}
                     className="w-full text-xs font-semibold text-brand-slate bg-transparent focus:outline-none cursor-pointer mt-0.5"
                   />
                 </div>
@@ -306,6 +347,7 @@ export const PropertyDetailsPage: React.FC = () => {
                   <input
                     type="date"
                     value={checkOut}
+                    min={checkIn ? format(addDays(parseISO(checkIn), 1), 'yyyy-MM-dd') : today}
                     onChange={(e) => setCheckOut(e.target.value)}
                     className="w-full text-xs font-semibold text-brand-slate bg-transparent focus:outline-none cursor-pointer mt-0.5"
                   />
@@ -360,22 +402,27 @@ export const PropertyDetailsPage: React.FC = () => {
             <div className="space-y-2.5 text-xs text-slate-600 pt-2">
               <div className="flex justify-between">
                 <span>
-                  ${property.price_per_night} × {numNights} night{numNights > 1 ? 's' : ''}
+                  {formatINR(property.price_per_night)} × {numNights} night{numNights > 1 ? 's' : ''}
                 </span>
-                <span className="font-semibold">${baseNightlyTotal.toLocaleString()}</span>
+                <span className="font-semibold">{formatINR(baseNightlyTotal)}</span>
               </div>
               <div className="flex justify-between">
                 <span>Cleaning & Hospitality Fee</span>
-                <span className="font-semibold">${cleaningFee.toLocaleString()}</span>
+                <span className="font-semibold">{formatINR(cleaningFee)}</span>
               </div>
               <div className="flex justify-between">
-                <span>IvStay to pay to hotel ({property.service_fee_pct}%)</span>
-                <span className="font-semibold">₹{serviceFee.toLocaleString()}</span>
+                <span>Service fee ({property.service_fee_pct}%)</span>
+                <span className="font-semibold">{formatINR(serviceFee)}</span>
               </div>
               <div className="pt-3 border-t border-slate-200 flex justify-between text-sm font-bold text-brand-slate">
-                <span>Total Due</span>
-                <span className="font-serif text-xl text-brand-gold">${grandTotal.toLocaleString()}</span>
+                <span>Estimated Total</span>
+                <span className="font-serif text-xl text-brand-gold">{formatINR(grandTotal)}</span>
               </div>
+              {numNights < minNights && (
+                <p className="text-[11px] font-semibold text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+                  This stay has a minimum of {minNights} nights.
+                </p>
+              )}
             </div>
 
             {/* Instant Reserve CTA */}

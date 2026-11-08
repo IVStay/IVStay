@@ -84,6 +84,7 @@ export interface Booking {
   owner_rate?: number;
   owner_payment_date?: string;
   owner_payment_status?: 'paid' | 'pending';
+  created_at: string;
   // Joined preview property
   property_title?: string;
   property_image?: string;

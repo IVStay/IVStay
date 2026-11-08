@@ -11,7 +11,7 @@ const initialFilterState: FilterState = {
   checkIn: null,
   checkOut: null,
   guests: 1,
-  priceRange: [0, 5000],
+  priceRange: [0, Number.MAX_SAFE_INTEGER], // no upper limit by default
   bedrooms: 0,
   bathrooms: 0,
   amenities: [],
@@ -48,9 +48,9 @@ export const PropertyProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [wishlistIds, setWishlistIds] = useState<string[]>(() => {
     try {
       const saved = localStorage.getItem(WISHLIST_STORAGE_KEY);
-      return saved ? JSON.parse(saved) : ['prop-villa-1', 'prop-villa-3'];
+      return saved ? JSON.parse(saved) : [];
     } catch {
-      return ['prop-villa-1', 'prop-villa-3'];
+      return [];
     }
   });
 
@@ -84,8 +84,9 @@ export const PropertyProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const newProperty: Property = {
       ...data,
       id: 'prop-' + Date.now(),
-      rating: 5.0,
-      review_count: 1,
+      // New listings start without a rating until real reviews exist
+      rating: 0,
+      review_count: 0,
       created_at: new Date().toISOString(),
     };
     setProperties((prev) => [newProperty, ...prev]);

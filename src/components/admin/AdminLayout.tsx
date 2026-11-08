@@ -4,7 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { LayoutDashboard, Building2, CalendarDays, LogOut, Shield, ArrowLeft, Sparkles } from 'lucide-react';
 
 export const AdminLayout: React.FC = () => {
-  const { user, isAdmin } = useAuth();
+  const { user, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -48,7 +48,7 @@ export const AdminLayout: React.FC = () => {
             />
             <div className="overflow-hidden">
               <p className="text-xs font-bold text-white truncate">{user.full_name}</p>
-              <p className="text-[10px] text-brand-gold truncate font-mono">arnavaggarwal3095@gmail.com</p>
+              <p className="text-[10px] text-brand-gold truncate font-mono">{user.email}</p>
             </div>
           </div>
 
@@ -86,7 +86,10 @@ export const AdminLayout: React.FC = () => {
           </Link>
 
           <button
-            onClick={() => navigate('/admin/login')}
+            onClick={() => {
+              logout();
+              navigate('/admin/login', { replace: true });
+            }}
             className="w-full flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold text-rose-400 hover:bg-rose-950/40 transition-colors"
           >
             <LogOut className="w-4 h-4" />

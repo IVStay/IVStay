@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
+import { formatINR } from '../../utils/currency';
 import { Heart, Star, ChevronLeft, ChevronRight, MapPin, Users, Bed, Bath } from 'lucide-react';
 import { Property } from '../../types';
 import { Badge } from '../ui/Badge';
@@ -14,6 +15,9 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({ property }) => {
   const { isWishlisted, toggleWishlist } = useProperties();
   const { showSuccess, showInfo } = useToast();
   const [currentImgIndex, setCurrentImgIndex] = useState(0);
+  // Carry the current search (dates/guests) through to the detail page
+  const { search } = useLocation();
+  const detailHref = `/stays/${property.id}${search}`;
 
   const favorited = isWishlisted(property.id);
 
@@ -44,7 +48,7 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({ property }) => {
     <div className="group relative bg-white rounded-3xl overflow-hidden border border-slate-100 shadow-sm hover:shadow-card-hover transition-all duration-300 flex flex-col">
       {/* Image Carousel Container */}
       <div className="relative h-64 sm:h-72 w-full overflow-hidden bg-slate-100">
-        <Link to={`/stays/${property.id}`} className="block w-full h-full">
+        <Link to={detailHref} className="block w-full h-full">
           <img
             src={property.images[currentImgIndex] || property.images[0]}
             alt={property.title}
@@ -120,13 +124,19 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({ property }) => {
             </span>
             <div className="flex items-center gap-1 text-xs font-bold text-brand-slate">
               <Star className="w-3.5 h-3.5 fill-brand-gold text-brand-gold" />
-              <span>{property.rating.toFixed(2)}</span>
-              <span className="text-slate-400 font-normal">({property.review_count})</span>
+              {property.review_count > 0 ? (
+                <>
+                  <span>{property.rating.toFixed(2)}</span>
+                  <span className="text-slate-400 font-normal">({property.review_count})</span>
+                </>
+              ) : (
+                <span>New</span>
+              )}
             </div>
           </div>
 
           {/* Title */}
-          <Link to={`/stays/${property.id}`} className="block group-hover:text-brand-gold transition-colors">
+          <Link to={detailHref} className="block group-hover:text-brand-gold transition-colors">
             <h3 className="font-serif text-lg font-bold text-brand-slate line-clamp-1">
               {property.title}
             </h3>
@@ -159,12 +169,12 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({ property }) => {
         <div className="flex items-center justify-between pt-4 mt-3 border-t border-slate-100">
           <div>
             <span className="font-serif text-xl font-extrabold text-brand-slate">
-              ₹{property.price_per_night.toLocaleString()}
+              {formatINR(property.price_per_night)}
             </span>
             <span className="text-xs text-slate-500"> / night</span>
           </div>
           <Link
-            to={`/stays/${property.id}`}
+            to={detailHref}
             className="px-4 py-2 rounded-full bg-slate-900 text-white hover:bg-brand-gold text-xs font-semibold transition-all shadow-sm"
           >
             Reserve

@@ -142,7 +142,7 @@ export const GanttCalendar: React.FC = () => {
                       b.property_id === prop.id &&
                       b.booking_status !== 'cancelled' &&
                       dayStr >= b.check_in &&
-                      dayStr <= b.check_out
+                      dayStr < b.check_out // checkout day is free for the next guest
                   );
 
                   return (

@@ -4,6 +4,7 @@ import { useProperties } from '../../context/PropertyContext';
 import { useToast } from '../../context/ToastContext';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
+import { formatINR } from '../../utils/currency';
 import {
   Building2,
   Plus,
@@ -46,6 +47,7 @@ export const AdminPropertiesPage: React.FC = () => {
   };
 
   const handleDelete = (id: string, title: string) => {
+    if (!confirm(`Delete "${title}"? This cannot be undone.`)) return;
     deleteProperty(id);
     showInfo('Property Deleted', `${title} removed from master database`);
   };
@@ -191,7 +193,7 @@ export const AdminPropertiesPage: React.FC = () => {
 
                 {/* Price */}
                 <td className="py-4 px-4 font-serif font-extrabold text-white text-sm">
-                  ${prop.price_per_night}
+                  {formatINR(prop.price_per_night)}
                 </td>
 
                 {/* Capacity */}
@@ -203,7 +205,7 @@ export const AdminPropertiesPage: React.FC = () => {
                 <td className="py-4 px-4 font-bold text-amber-300">
                   <div className="flex items-center gap-1">
                     <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                    <span>{prop.rating.toFixed(2)}</span>
+                    <span>{prop.review_count > 0 ? prop.rating.toFixed(2) : 'New'}</span>
                   </div>
                 </td>
 

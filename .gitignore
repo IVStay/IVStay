@@ -1,0 +1,32 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# The Next.js partner site is its own git repository (github.com/AaryanFromPEC/IvStay)
+partner_frontend/
+
+# Environment files (keep .env.example)
+.env
+.env.*
+!.env.example
+
+# Vite leftovers
+*.timestamp-*.mjs
+*.local
+
+# Supabase local state
+supabase/.branches/
+supabase/.temp/
+
+# Editors / OS
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# Logs
+npm-debug.log*
+*.log

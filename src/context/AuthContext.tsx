@@ -228,6 +228,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
     const { data, error } = await supabase.auth.mfa.enroll({
       factorType: 'totp',
+      // Name shown in the authenticator app; without it Supabase uses the Site URL's host.
+      issuer: 'IvStay',
       friendlyName: `IvStay admin ${new Date().toISOString().slice(0, 10)}`,
     });
     if (error) throw new Error(error.message);

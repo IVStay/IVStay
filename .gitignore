@@ -4,8 +4,8 @@ node_modules/
 # Build output
 dist/
 
-# The Next.js partner site is its own git repository (github.com/AaryanFromPEC/IvStay)
-partner_frontend/
+# Backup of partner_frontend's original git data (it was a separate repo, github.com/AaryanFromPEC/IvStay)
+.partner-frontend-git-backup/
 
 # Environment files (keep .env.example)
 .env

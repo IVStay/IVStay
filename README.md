@@ -3,7 +3,8 @@
 Booking site for hand-picked villas, BnBs and hotels in India, plus an admin console.
 
 - **Website + admin console:** Vite, React 18, TypeScript, Tailwind (`src/`). The public pages are
-  imported from `partner_frontend/` (a separate git repository) through the `@/` import alias.
+  imported from `partner_frontend/` (originally a separate Next.js project) through the `@/`
+  import alias.
 - **Backend:** Supabase (Postgres, login, photo storage). Schema, access rules and tests live in
   `supabase/`.
 

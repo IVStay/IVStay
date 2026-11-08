@@ -1,0 +1,157 @@
+.hero {
+  position: relative;
+  /* Own stacking context, so the z-index:-1 background images paint above the
+     page background instead of disappearing behind the body */
+  isolation: isolate;
+  height: calc(100vh - 90px);
+  min-height: 700px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.background {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1;
+}
+
+.background::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0.4) 0%,
+    rgba(0, 0, 0, 0.2) 50%,
+    rgba(0, 0, 0, 0.6) 100%
+  );
+}
+
+.image {
+  object-fit: cover;
+  width: 100%;
+  height: 100%;
+}
+
+.content {
+  text-align: center;
+  color: var(--color-white);
+  max-width: 800px;
+  padding: 0 var(--space-4);
+  z-index: 10;
+}
+
+.title {
+  font-size: 2.5rem;
+  font-weight: 400;
+  margin-bottom: var(--space-4);
+  line-height: 1.1;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+@media (min-width: 768px) {
+  .title {
+    font-size: 4rem;
+  }
+}
+
+.subtitle {
+  font-size: 1.125rem;
+  font-family: var(--font-sans);
+  font-weight: 300;
+  margin-bottom: var(--space-8);
+  opacity: 0.9;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.searchWidget {
+  background-color: var(--color-white);
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 900px;
+  margin: var(--space-8) auto 0;
+  box-shadow: var(--shadow-lg);
+  color: var(--text-primary);
+  border-radius: var(--radius-xl);
+  padding: var(--space-2);
+}
+
+@media (min-width: 768px) {
+  .searchWidget {
+    flex-direction: row;
+    height: 72px;
+    align-items: center;
+    border-radius: 40px;
+  }
+}
+
+.searchFieldWrapper {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  position: relative;
+}
+
+@media (min-width: 768px) {
+  .searchFieldWrapper:not(:last-of-type)::after {
+    content: '';
+    position: absolute;
+    right: 0;
+    top: 20%;
+    height: 60%;
+    width: 1px;
+    background-color: var(--border-light);
+  }
+}
+
+.searchField {
+  width: 100%;
+  border: none;
+  background: transparent;
+  font-family: var(--font-sans);
+  font-size: 1.05rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  outline: none;
+  padding: var(--space-4) var(--space-6);
+  cursor: pointer;
+}
+
+.searchField::placeholder {
+  color: var(--text-secondary);
+}
+
+.searchButton {
+  background-color: var(--accent-gold);
+  color: var(--color-black);
+  height: 56px;
+  padding: 0 var(--space-8);
+  font-weight: 600;
+  font-size: 1.05rem;
+  transition: background-color var(--transition-fast);
+  border-radius: 40px;
+  cursor: pointer;
+  margin-top: var(--space-2);
+}
+
+@media (min-width: 768px) {
+  .searchButton {
+    margin-top: 0;
+  }
+}
+
+.searchButton:hover {
+  background-color: #ffdb91; /* Lighter yellow on hover */
+}
+

@@ -1,0 +1,12 @@
+# Files never uploaded by `vercel deploy` from this computer (git-based deploys only see the repo).
+.env*
+!.env.example
+.partner-frontend-git-backup/
+node_modules/
+partner_frontend/node_modules/
+partner_frontend/.next/
+dist/
+.claude/
+supabase/.temp/
+supabase/.branches/
+*.timestamp-*.mjs

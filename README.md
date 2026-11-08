@@ -66,12 +66,19 @@ needs the whole project, including `partner_frontend/`, to build it.
 | Output folder | `dist` |
 | Environment variables | `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY` (never the secret key) |
 
+- **Vercel**: import the GitHub repository; `vercel.json` already holds the build settings, the
+  rule that keeps deep links like `/stays/pinewood-manor-kasauli` working on refresh, long caching
+  for built files and basic security headers. Add the two environment variables for Production
+  and Preview. Note: the free Hobby plan is for non-commercial use; a site taking real bookings
+  needs Vercel Pro.
 - **Cloudflare Pages** (free plan allows business sites): connect the GitHub repository, or upload
   from your machine with `npm run build` then `npx wrangler pages deploy dist`. Unknown paths are
   served by the app automatically.
-- **Netlify**: `netlify.toml` already holds the build settings and the rule that keeps deep links
-  like `/stays/pinewood-manor-kasauli` working on refresh.
-- **Vercel**: the free Hobby plan doesn't allow commercial use.
+- **Netlify**: `netlify.toml` already holds the build settings and the deep-link rule.
+
+There is no separate backend server to deploy: the browser talks to Supabase directly, and the
+database's access rules protect the data. Payment webhooks (Phase 3) will run as Supabase Edge
+Functions.
 
 After adding your domain, put it in Supabase under Authentication → URL Configuration.
 

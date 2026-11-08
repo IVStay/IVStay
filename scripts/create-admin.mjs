@@ -8,7 +8,7 @@
 // On first sign-in the admin console asks the new admin to set up an authenticator app.
 // Needs SUPABASE_URL (or VITE_SUPABASE_URL) and SUPABASE_SECRET_KEY, as in .env.example.
 
-import readline from 'node:readline/promises';
+import { askHidden } from './lib/prompt.mjs';
 import { createClient } from '@supabase/supabase-js';
 
 const MIN_PASSWORD_LENGTH = 12;
@@ -28,20 +28,6 @@ if (!url || !secretKey) {
 
 const supabase = createClient(url, secretKey, { auth: { persistSession: false } });
 
-async function askHidden(question) {
-  const rl = readline.createInterface({ input: process.stdin, output: process.stdout, terminal: true });
-  const write = rl._writeToOutput.bind(rl);
-  let muted = false;
-  rl._writeToOutput = (text) => {
-    if (!muted) write(text);
-  };
-  const answer = rl.question(question);
-  muted = true;
-  const value = await answer;
-  rl.close();
-  process.stdout.write('\n');
-  return value;
-}
 
 async function findUserIdByEmail(address) {
   const wanted = address.toLowerCase();

@@ -32,13 +32,15 @@ local admin (dev only)** button. That button never appears in production builds.
    - Authentication → Multi-Factor: make sure **TOTP (authenticator app)** is enabled.
    - Authentication → URL Configuration: set the Site URL to your website's address.
    - Authentication → Password: minimum length 12.
-3. **Apply the schema.** Either paste each file in `supabase/migrations/` into the dashboard's
-   **SQL Editor**, oldest first, and press Run; or use the CLI from the project root:
+3. **Apply the schema** (and, the first time, the seed) with the CLI from the project root:
    ```bash
    npx supabase login
    npx supabase link --project-ref your-project-ref
-   npx supabase db push
+   npx supabase db push --linked --include-seed
    ```
+   Without the CLI login you can run `node --env-file=.env.local scripts/setup-database.mjs`,
+   which asks for the database password (hidden). Run the same command again after adding new
+   migrations; changes already applied are skipped.
 4. **Add the keys.** Copy `.env.example` to `.env.local` and fill it in (Project Settings → API).
    Only the publishable key goes in `VITE_` variables; the secret key must never be bundled.
 5. **Create the first admin:**

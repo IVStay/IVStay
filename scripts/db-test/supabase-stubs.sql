@@ -9,9 +9,10 @@ create schema auth;
 create schema storage;
 grant usage on schema public, extensions, auth, storage to anon, authenticated, service_role;
 
-alter default privileges in schema public grant all on tables to anon, authenticated, service_role;
-alter default privileges in schema public grant all on sequences to anon, authenticated, service_role;
-alter default privileges in schema public grant all on functions to anon, authenticated, service_role;
+-- New Supabase projects (created after 30 May 2026) no longer open new tables to the API roles
+-- automatically, so this stand-in doesn't either; it also withholds the default "anyone can run
+-- functions" right. The migrations must grant exactly what the website needs.
+alter default privileges in schema public revoke execute on functions from public;
 
 create table auth.users (
   id uuid primary key default gen_random_uuid(),

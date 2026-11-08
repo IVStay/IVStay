@@ -1,0 +1,13 @@
+# Netlify settings. (Cloudflare Pages needs no file: it serves index.html for unknown paths
+# automatically as long as there is no 404.html.)
+
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+# Single-page app: let the app handle every path, e.g. /stays/pinewood-manor-kasauli,
+# so refreshing or sharing a deep link doesn't show "page not found".
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

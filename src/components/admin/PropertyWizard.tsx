@@ -1,582 +1,712 @@
-import React, { useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import React, { useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useProperties } from '../../context/PropertyContext';
 import { useToast } from '../../context/ToastContext';
-import { Property, PropertyCategory, PropertyType, PropertyStatus } from '../../types';
-import { Button } from '../ui/Button';
 import {
-  Check,
-  ChevronRight,
-  ChevronLeft,
-  Building2,
-  MapPin,
-  Users,
-  DollarSign,
-  Sparkles,
-  UploadCloud,
-  CheckCircle,
-  Trash2,
-  Star,
-} from 'lucide-react';
+  CancellationPolicy,
+  Property,
+  PropertyCategory,
+  PropertyInput,
+  PropertyPhoto,
+  PropertyStatus,
+  PropertyType,
+} from '../../types';
+import { Button } from '../ui/Button';
+import { Check, ChevronRight, ChevronLeft, UploadCloud, CheckCircle, Trash2, Star, Link2, Plus, X } from 'lucide-react';
 
 interface PropertyWizardProps {
   existingProperty?: Property;
 }
 
+const MAX_PHOTO_BYTES = 10 * 1024 * 1024; // matches the storage bucket limit
+
+const COMMON_AMENITIES = [
+  'Free Wi-Fi',
+  'Air Conditioning & Heating',
+  'Fully Equipped Kitchen',
+  'Private Pool',
+  'Mountain View',
+  'Valley View',
+  'Sea View',
+  'Garden',
+  'Dedicated Caretaker',
+  'Private Chef Available',
+  'Daily Housekeeping',
+  'Power Backup',
+  'Free Parking',
+  'Bonfire / BBQ setup available',
+  'Outdoor Dining Area',
+  'Television',
+  'Indoor Games',
+  'Pet Friendly',
+  'Hot Tub / Jacuzzi',
+  'EV Charger',
+  'In-house Restaurant',
+  'Room Service',
+  'Laundry Service',
+  '24/7 Front Desk',
+  'Conference Hall',
+];
+
+/** Number fields are kept as text while editing so they can be empty. */
+interface FormState {
+  title: string;
+  tagline: string;
+  description: string;
+  category: PropertyCategory;
+  property_type: PropertyType;
+  host_name: string;
+  address: string;
+  city: string;
+  state: string;
+  zip_code: string;
+  latitude: string;
+  longitude: string;
+  max_guests: string;
+  base_guests: string;
+  bedrooms: string;
+  beds: string;
+  bathrooms: string;
+  price_per_night: string;
+  weekend_surge_price: string;
+  extra_guest_fee: string;
+  cleaning_fee: string;
+  service_fee_pct: string;
+  min_nights: string;
+  cancellation_policy: CancellationPolicy;
+  amenities: string[];
+  photos: PropertyPhoto[];
+  status: PropertyStatus;
+  is_verified: boolean;
+  is_featured: boolean;
+}
+
+const text = (value: number | null | undefined) => (value == null ? '' : String(value));
+
+function initialForm(p?: Property): FormState {
+  return {
+    title: p?.title ?? '',
+    tagline: p?.tagline ?? '',
+    description: p?.description ?? '',
+    category: p?.category ?? 'bnbs_and_villas',
+    property_type: p?.property_type ?? 'villa',
+    host_name: p?.host_name ?? '',
+    address: p?.address ?? '',
+    city: p?.city ?? '',
+    state: p?.state ?? '',
+    zip_code: p?.zip_code ?? '',
+    latitude: text(p?.latitude),
+    longitude: text(p?.longitude),
+    max_guests: text(p?.max_guests ?? 2),
+    base_guests: text(p?.base_guests ?? 2),
+    bedrooms: text(p?.bedrooms),
+    beds: text(p?.beds),
+    bathrooms: text(p?.bathrooms),
+    price_per_night: text(p?.price_per_night),
+    weekend_surge_price: text(p?.weekend_surge_price),
+    extra_guest_fee: text(p?.extra_guest_fee ?? 0),
+    cleaning_fee: text(p?.cleaning_fee ?? 0),
+    service_fee_pct: text(p?.service_fee_pct ?? 0),
+    min_nights: text(p?.min_nights ?? 1),
+    cancellation_policy: p?.cancellation_policy ?? 'Flexible',
+    amenities: p?.amenities ?? [],
+    photos: p?.photos ?? [],
+    status: p?.status ?? 'draft',
+    is_verified: p?.is_verified ?? false,
+    is_featured: p?.is_featured ?? false,
+  };
+}
+
+const steps = [
+  { num: 1, label: 'General Info' },
+  { num: 2, label: 'Location' },
+  { num: 3, label: 'Capacity' },
+  { num: 4, label: 'Pricing & Policies' },
+  { num: 5, label: 'Amenities' },
+  { num: 6, label: 'Photos' },
+  { num: 7, label: 'Publishing' },
+];
+
+const inputClass =
+  'w-full p-3 bg-slate-800 border border-slate-700 text-white rounded-xl text-xs focus:outline-none focus:border-brand-gold';
+const labelClass = 'block text-xs font-bold text-slate-300 mb-1';
+const hintClass = 'text-[10px] text-slate-500 mt-1';
+
+/** Checks the form and builds what gets saved. Returns problems with the step to fix them on. */
+function validate(form: FormState): { input?: PropertyInput; problems: { step: number; message: string }[] } {
+  const problems: { step: number; message: string }[] = [];
+  const num = (value: string) => (value.trim() === '' ? null : Number(value));
+  const whole = (value: string) => {
+    const n = num(value);
+    return n == null || !Number.isFinite(n) ? null : Math.round(n);
+  };
+
+  if (form.title.trim().length < 2) problems.push({ step: 1, message: 'Add a title (at least 2 characters).' });
+  if (!form.city.trim()) problems.push({ step: 2, message: 'Add the city or town.' });
+
+  const latitude = num(form.latitude);
+  const longitude = num(form.longitude);
+  if (latitude != null && (!Number.isFinite(latitude) || latitude < -90 || latitude > 90)) {
+    problems.push({ step: 2, message: 'Latitude must be between -90 and 90.' });
+  }
+  if (longitude != null && (!Number.isFinite(longitude) || longitude < -180 || longitude > 180)) {
+    problems.push({ step: 2, message: 'Longitude must be between -180 and 180.' });
+  }
+
+  const maxGuests = whole(form.max_guests);
+  const baseGuests = whole(form.base_guests);
+  if (!maxGuests || maxGuests < 1) problems.push({ step: 3, message: 'Max guests must be at least 1.' });
+  if (!baseGuests || baseGuests < 1) problems.push({ step: 3, message: 'Guests included in the price must be at least 1.' });
+  if (maxGuests && baseGuests && baseGuests > maxGuests) {
+    problems.push({ step: 3, message: 'Guests included in the price can\'t be more than max guests.' });
+  }
+  for (const [field, label] of [
+    ['bedrooms', 'Bedrooms'],
+    ['beds', 'Beds'],
+    ['bathrooms', 'Bathrooms'],
+  ] as const) {
+    const n = num(form[field]);
+    if (n != null && (!Number.isFinite(n) || n < 0)) problems.push({ step: 3, message: `${label} can't be negative.` });
+  }
+
+  const price = num(form.price_per_night);
+  if (price == null || !Number.isFinite(price) || price <= 0) {
+    problems.push({ step: 4, message: 'Add the nightly price.' });
+  }
+  const serviceFee = num(form.service_fee_pct) ?? 0;
+  if (!Number.isFinite(serviceFee) || serviceFee < 0 || serviceFee > 100) {
+    problems.push({ step: 4, message: 'The service fee must be between 0% and 100%.' });
+  }
+  const minNights = whole(form.min_nights) ?? 1;
+  if (minNights < 1) problems.push({ step: 4, message: 'Minimum stay must be at least 1 night.' });
+  for (const [field, label] of [
+    ['weekend_surge_price', 'Weekend price'],
+    ['extra_guest_fee', 'Extra guest fee'],
+    ['cleaning_fee', 'Cleaning fee'],
+  ] as const) {
+    const n = num(form[field]);
+    if (n != null && (!Number.isFinite(n) || n < 0)) problems.push({ step: 4, message: `${label} can't be negative.` });
+  }
+
+  if (form.status === 'active' && form.photos.length === 0) {
+    problems.push({ step: 6, message: 'Add at least one photo before publishing.' });
+  }
+
+  if (problems.length) return { problems };
+
+  return {
+    problems,
+    input: {
+      title: form.title.trim(),
+      tagline: form.tagline.trim(),
+      description: form.description.trim(),
+      category: form.category,
+      property_type: form.property_type,
+      host_name: form.host_name.trim() || null,
+      address: form.address.trim(),
+      city: form.city.trim(),
+      state: form.state.trim(),
+      zip_code: form.zip_code.trim() || null,
+      latitude,
+      longitude,
+      max_guests: maxGuests!,
+      base_guests: baseGuests!,
+      bedrooms: whole(form.bedrooms),
+      beds: whole(form.beds),
+      bathrooms: num(form.bathrooms),
+      price_per_night: price!,
+      weekend_surge_price: num(form.weekend_surge_price) || null,
+      extra_guest_fee: num(form.extra_guest_fee) ?? 0,
+      cleaning_fee: num(form.cleaning_fee) ?? 0,
+      service_fee_pct: serviceFee,
+      min_nights: minNights,
+      cancellation_policy: form.cancellation_policy,
+      amenities: form.amenities,
+      photos: form.photos,
+      status: form.status,
+      is_verified: form.is_verified,
+      is_featured: form.is_featured,
+    },
+  };
+}
+
 export const PropertyWizard: React.FC<PropertyWizardProps> = ({ existingProperty }) => {
   const navigate = useNavigate();
-  const { addProperty, updateProperty } = useProperties();
+  const { saveProperty, uploadPhoto, source } = useProperties();
   const { showSuccess, showError } = useToast();
 
   const [currentStep, setCurrentStep] = useState(1);
+  const [form, setForm] = useState<FormState>(() => initialForm(existingProperty));
+  const [newPhotoUrl, setNewPhotoUrl] = useState('');
+  const [customAmenity, setCustomAmenity] = useState('');
+  const [uploading, setUploading] = useState(0);
+  const [saving, setSaving] = useState(false);
+  const [problems, setProblems] = useState<{ step: number; message: string }[]>([]);
+  const fileInput = useRef<HTMLInputElement>(null);
 
-  // Form Step State
-  const [title, setTitle] = useState(existingProperty?.title || '');
-  const [tagline, setTagline] = useState(existingProperty?.tagline || '');
-  const [category, setCategory] = useState<PropertyCategory>(existingProperty?.category || 'bnbs_and_villas');
-  const [propertyType, setPropertyType] = useState<PropertyType>(existingProperty?.property_type || 'villa');
-  const [description, setDescription] = useState(existingProperty?.description || '');
+  const set = <K extends keyof FormState>(key: K, value: FormState[K]) => setForm((prev) => ({ ...prev, [key]: value }));
 
-  // Step 2: Location
-  const [address, setAddress] = useState(existingProperty?.address || '');
-  const [city, setCity] = useState(existingProperty?.city || '');
-  const [state, setState] = useState(existingProperty?.state || '');
-  const [zipCode, setZipCode] = useState(existingProperty?.zip_code || '');
-  const [lat, setLat] = useState(existingProperty?.latitude || 40.6281);
-  const [lng, setLng] = useState(existingProperty?.longitude || 14.485);
+  const toggleAmenity = (item: string) =>
+    set('amenities', form.amenities.includes(item) ? form.amenities.filter((a) => a !== item) : [...form.amenities, item]);
 
-  // Step 3: Capacity
-  const [maxGuests, setMaxGuests] = useState(existingProperty?.max_guests || 6);
-  const [bedrooms, setBedrooms] = useState(existingProperty?.bedrooms || 3);
-  const [beds, setBeds] = useState(existingProperty?.beds || 4);
-  const [bathrooms, setBathrooms] = useState(existingProperty?.bathrooms || 3);
-
-  // Step 4: Pricing & Policies
-  const [pricePerNight, setPricePerNight] = useState(existingProperty?.price_per_night || 950);
-  const [weekendSurgePrice, setWeekendSurgePrice] = useState(existingProperty?.weekend_surge_price || 1100);
-  const [cleaningFee, setCleaningFee] = useState(existingProperty?.cleaning_fee || 150);
-  const [serviceFeePct, setServiceFeePct] = useState(existingProperty?.service_fee_pct || 12);
-  const [minNights, setMinNights] = useState(existingProperty?.min_nights || 2);
-  const [cancellationPolicy, setCancellationPolicy] = useState<'Flexible' | 'Moderate' | 'Strict'>(
-    existingProperty?.cancellation_policy || 'Flexible'
-  );
-
-  // Step 5: Amenities
-  const availableAmenities = [
-    'Private Infinity Pool',
-    'Dedicated Chef Service',
-    'Sea View Terrace',
-    'High-Speed Wi-Fi',
-    'Wine Cellar',
-    'Air Conditioning',
-    'Hot Tub / Jacuzzi',
-    'Helipad Access',
-    'Daily Housekeeping',
-    'EV Charger',
-    'Ski-in / Ski-out',
-    'Private Beach Lounge',
-  ];
-  const [amenities, setAmenities] = useState<string[]>(
-    existingProperty?.amenities || ['Private Infinity Pool', 'High-Speed Wi-Fi']
-  );
-
-  // Step 6: Multi-Media
-  const [images, setImages] = useState<string[]>(
-    existingProperty?.images || [
-      'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1600&q=80',
-      'https://images.unsplash.com/photo-1613977257363-707ba9348227?auto=format&fit=crop&w=1600&q=80',
-    ]
-  );
-  const [newImageUrl, setNewImageUrl] = useState('');
-
-  // Step 7: Status
-  const [status, setStatus] = useState<PropertyStatus>(existingProperty?.status || 'active');
-
-  const steps = [
-    { num: 1, label: 'General Info' },
-    { num: 2, label: 'Location' },
-    { num: 3, label: 'Capacity' },
-    { num: 4, label: 'Pricing & Policies' },
-    { num: 5, label: 'Amenities' },
-    { num: 6, label: 'Multi-Media' },
-    { num: 7, label: 'Publishing' },
-  ];
-
-  const toggleAmenity = (item: string) => {
-    setAmenities((prev) =>
-      prev.includes(item) ? prev.filter((a) => a !== item) : [...prev, item]
-    );
+  const addCustomAmenity = () => {
+    const value = customAmenity.trim();
+    if (value && !form.amenities.includes(value)) set('amenities', [...form.amenities, value]);
+    setCustomAmenity('');
   };
 
-  const addImage = () => {
-    if (!newImageUrl) return;
-    setImages((prev) => [...prev, newImageUrl]);
-    setNewImageUrl('');
-  };
-
-  const removeImage = (idx: number) => {
-    setImages((prev) => prev.filter((_, i) => i !== idx));
-  };
-
-  const handleFinishWizard = () => {
-    if (!title || !city) {
-      showError('Required Fields Missing', 'Property Title and City are required');
+  const addPhotoLink = () => {
+    const url = newPhotoUrl.trim();
+    if (!/^https?:\/\//i.test(url)) {
+      showError('Not a link', 'Paste a full image address starting with https://');
       return;
     }
-
-    const payload = {
-      title,
-      tagline: tagline || title,
-      description: description || 'Luxury stay on IvStay.',
-      category,
-      property_type: propertyType,
-      address: address || 'Main Villa Boulevard',
-      city,
-      state: state || 'Destination Region',
-      zip_code: zipCode,
-      latitude: Number(lat),
-      longitude: Number(lng),
-      price_per_night: Number(pricePerNight),
-      weekend_surge_price: Number(weekendSurgePrice),
-      cleaning_fee: Number(cleaningFee),
-      service_fee_pct: Number(serviceFeePct),
-      min_nights: Number(minNights),
-      cancellation_policy: cancellationPolicy,
-      max_guests: Number(maxGuests),
-      bedrooms: Number(bedrooms),
-      beds: Number(beds),
-      bathrooms: Number(bathrooms),
-      amenities,
-      images: images.length > 0 ? images : ['https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1600&q=80'],
-      status,
-      is_verified: true,
-      is_featured: true,
-    };
-
-    if (existingProperty) {
-      updateProperty(existingProperty.id, payload);
-      showSuccess('Property Updated!', `${title} has been updated`);
-    } else {
-      addProperty(payload);
-      showSuccess('Property Created!', `${title} is now published`);
-    }
-
-    navigate('/admin/properties');
+    set('photos', [...form.photos, { external_url: url, url, alt_text: '' }]);
+    setNewPhotoUrl('');
   };
+
+  const handleFiles = async (files: FileList | null) => {
+    if (!files?.length) return;
+    const list = Array.from(files);
+    setUploading(list.length);
+    for (const file of list) {
+      if (!file.type.startsWith('image/')) {
+        showError('Not an image', `${file.name} isn't an image file.`);
+      } else if (file.size > MAX_PHOTO_BYTES) {
+        showError('Photo too large', `${file.name} is over 10 MB. Please resize it and try again.`);
+      } else {
+        try {
+          const photo = await uploadPhoto(file);
+          setForm((prev) => ({ ...prev, photos: [...prev.photos, { ...photo, alt_text: prev.title }] }));
+        } catch (error) {
+          showError('Upload failed', error instanceof Error ? error.message : String(error));
+        }
+      }
+      setUploading((n) => n - 1);
+    }
+    if (fileInput.current) fileInput.current.value = '';
+  };
+
+  const removePhoto = (index: number) => set('photos', form.photos.filter((_, i) => i !== index));
+
+  const makeCover = (index: number) => {
+    const photos = [...form.photos];
+    const [chosen] = photos.splice(index, 1);
+    set('photos', [chosen, ...photos]);
+  };
+
+  const handleSave = async () => {
+    const result = validate(form);
+    setProblems(result.problems);
+    if (!result.input) {
+      setCurrentStep(result.problems[0].step);
+      return;
+    }
+    setSaving(true);
+    try {
+      const saved = await saveProperty(result.input, existingProperty?.id);
+      showSuccess(
+        existingProperty ? 'Stay updated' : 'Stay created',
+        saved.status === 'active' ? `${saved.title} is live on the site` : `${saved.title} is saved as ${saved.status}`
+      );
+      navigate('/admin/properties');
+    } catch (error) {
+      showError('Could not save', error instanceof Error ? error.message : String(error));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const numberInput = (key: keyof FormState, props: React.InputHTMLAttributes<HTMLInputElement> = {}) => (
+    <input
+      type="number"
+      inputMode="decimal"
+      value={form[key] as string}
+      onChange={(e) => set(key, e.target.value as never)}
+      className={inputClass}
+      {...props}
+    />
+  );
+
+  const customAmenities = form.amenities.filter((a) => !COMMON_AMENITIES.includes(a));
+  const stepProblems = problems.filter((p) => p.step === currentStep);
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">
-      {/* Step Indicator Header */}
+      {/* Step indicator */}
       <div className="bg-slate-900 p-6 rounded-3xl border border-slate-800 shadow-xl space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-4">
           <h2 className="font-serif text-2xl font-bold text-white">
-            {existingProperty ? `Edit: ${existingProperty.title}` : 'Add New Luxury Stay'}
+            {existingProperty ? `Edit: ${existingProperty.title}` : 'Add a new stay'}
           </h2>
-          <span className="text-xs font-bold text-brand-gold bg-amber-500/10 px-3 py-1 rounded-full">
-            Step {currentStep} of 7
+          <span className="text-xs font-bold text-brand-gold bg-amber-500/10 px-3 py-1 rounded-full shrink-0">
+            Step {currentStep} of {steps.length}
           </span>
         </div>
-
-        {/* Progress pills bar */}
         <div className="grid grid-cols-7 gap-2">
           {steps.map((s) => (
             <button
               key={s.num}
+              type="button"
               onClick={() => setCurrentStep(s.num)}
               className={`h-2 rounded-full transition-all ${
-                s.num <= currentStep ? 'bg-brand-gold shadow-gold-glow' : 'bg-slate-800'
+                problems.some((p) => p.step === s.num)
+                  ? 'bg-rose-500'
+                  : s.num <= currentStep
+                  ? 'bg-brand-gold shadow-gold-glow'
+                  : 'bg-slate-800'
               }`}
               title={s.label}
+              aria-label={`Go to step ${s.num}: ${s.label}`}
             />
           ))}
         </div>
         <p className="text-xs text-slate-400 font-semibold">{steps[currentStep - 1].label}</p>
       </div>
 
-      {/* Step Body Cards */}
       <div className="bg-slate-900 p-8 rounded-3xl border border-slate-800 shadow-xl space-y-6">
-        {/* Step 1: General Info */}
+        {stepProblems.length > 0 && (
+          <ul role="alert" className="p-3 rounded-xl bg-rose-950/60 border border-rose-800 text-xs text-rose-200 space-y-1">
+            {stepProblems.map((p) => (
+              <li key={p.message}>• {p.message}</li>
+            ))}
+          </ul>
+        )}
+
         {currentStep === 1 && (
           <div className="space-y-4">
             <div>
-              <label className="block text-xs font-bold text-slate-300 mb-1">Property Title</label>
-              <input
-                type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="e.g. Villa Seraphina Cliffside Estate"
-                className="w-full p-3 bg-slate-800 border border-slate-700 text-white rounded-xl text-xs focus:outline-none focus:border-brand-gold"
-              />
+              <label className={labelClass} htmlFor="wiz-title">Title *</label>
+              <input id="wiz-title" type="text" value={form.title} onChange={(e) => set('title', e.target.value)} placeholder="e.g. Pinewood Manor in Kasauli" className={inputClass} />
+              <p className={hintClass}>The page address is made from the title when the stay is first saved, and then stays the same.</p>
             </div>
-
             <div>
-              <label className="block text-xs font-bold text-slate-300 mb-1">Editorial Tagline</label>
-              <input
-                type="text"
-                value={tagline}
-                onChange={(e) => setTagline(e.target.value)}
-                placeholder="e.g. Panoramic sea view with private infinity pool"
-                className="w-full p-3 bg-slate-800 border border-slate-700 text-white rounded-xl text-xs focus:outline-none"
-              />
+              <label className={labelClass} htmlFor="wiz-tagline">Tagline</label>
+              <input id="wiz-tagline" type="text" value={form.tagline} onChange={(e) => set('tagline', e.target.value)} placeholder="e.g. Mountain views and a quiet garden" className={inputClass} />
             </div>
-
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1">Category</label>
-                <select
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value as PropertyCategory)}
-                  className="w-full p-3 bg-slate-800 border border-slate-700 text-white rounded-xl text-xs"
-                >
+                <label className={labelClass} htmlFor="wiz-category">Category</label>
+                <select id="wiz-category" value={form.category} onChange={(e) => set('category', e.target.value as PropertyCategory)} className={inputClass}>
                   <option value="bnbs_and_villas">BnBs & Villas</option>
                   <option value="hotels">Hotels</option>
                   <option value="home_stays">Home Stays</option>
                 </select>
               </div>
-
               <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1">Property Type</label>
-                <select
-                  value={propertyType}
-                  onChange={(e) => setPropertyType(e.target.value as PropertyType)}
-                  className="w-full p-3 bg-slate-800 border border-slate-700 text-white rounded-xl text-xs"
-                >
+                <label className={labelClass} htmlFor="wiz-type">Property type</label>
+                <select id="wiz-type" value={form.property_type} onChange={(e) => set('property_type', e.target.value as PropertyType)} className={inputClass}>
                   <option value="villa">Private Villa</option>
                   <option value="bnb">Boutique BnB</option>
-                  <option value="hotel">Boutique Hotel</option>
-                  <option value="resort">Luxury Resort</option>
+                  <option value="hotel">Hotel</option>
+                  <option value="resort">Resort</option>
                   <option value="home_stay">Home Stay</option>
                 </select>
               </div>
             </div>
-
             <div>
-              <label className="block text-xs font-bold text-slate-300 mb-1">Detailed Description</label>
-              <textarea
-                rows={4}
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Write an editorial description detailing architectural grandeur, view lines, and hospitality perks."
-                className="w-full p-3 bg-slate-800 border border-slate-700 text-white rounded-xl text-xs focus:outline-none"
-              />
+              <label className={labelClass} htmlFor="wiz-description">Description</label>
+              <textarea id="wiz-description" rows={5} value={form.description} onChange={(e) => set('description', e.target.value)} placeholder="What makes this stay special: the views, the rooms, what's nearby." className={inputClass} />
+            </div>
+            <div>
+              <label className={labelClass} htmlFor="wiz-host">Host name</label>
+              <input id="wiz-host" type="text" value={form.host_name} onChange={(e) => set('host_name', e.target.value)} placeholder="Optional. Shown as “Hosted by …”" className={inputClass} />
             </div>
           </div>
         )}
 
-        {/* Step 2: Location */}
         {currentStep === 2 && (
           <div className="space-y-4">
             <div>
-              <label className="block text-xs font-bold text-slate-300 mb-1">Street Address</label>
-              <input
-                type="text"
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                placeholder="Via Cristoforo Colombo 84"
-                className="w-full p-3 bg-slate-800 border border-slate-700 text-white rounded-xl text-xs"
-              />
+              <label className={labelClass} htmlFor="wiz-address">Street address</label>
+              <input id="wiz-address" type="text" value={form.address} onChange={(e) => set('address', e.target.value)} className={inputClass} />
             </div>
-
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1">City</label>
-                <input
-                  type="text"
-                  value={city}
-                  onChange={(e) => setCity(e.target.value)}
-                  placeholder="Positano"
-                  className="w-full p-3 bg-slate-800 border border-slate-700 text-white rounded-xl text-xs"
-                />
+                <label className={labelClass} htmlFor="wiz-city">City or town *</label>
+                <input id="wiz-city" type="text" value={form.city} onChange={(e) => set('city', e.target.value)} placeholder="e.g. Kasauli" className={inputClass} />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1">State / Region</label>
-                <input
-                  type="text"
-                  value={state}
-                  onChange={(e) => setState(e.target.value)}
-                  placeholder="Amalfi Coast"
-                  className="w-full p-3 bg-slate-800 border border-slate-700 text-white rounded-xl text-xs"
-                />
+                <label className={labelClass} htmlFor="wiz-state">State</label>
+                <input id="wiz-state" type="text" value={form.state} onChange={(e) => set('state', e.target.value)} placeholder="e.g. Himachal Pradesh" className={inputClass} />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1">ZIP / Postal Code</label>
-                <input
-                  type="text"
-                  value={zipCode}
-                  onChange={(e) => setZipCode(e.target.value)}
-                  placeholder="84017"
-                  className="w-full p-3 bg-slate-800 border border-slate-700 text-white rounded-xl text-xs"
-                />
+                <label className={labelClass} htmlFor="wiz-pin">PIN code</label>
+                <input id="wiz-pin" type="text" value={form.zip_code} onChange={(e) => set('zip_code', e.target.value)} className={inputClass} />
               </div>
             </div>
-
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1">Latitude</label>
-                <input
-                  type="number"
-                  step="0.0001"
-                  value={lat}
-                  onChange={(e) => setLat(parseFloat(e.target.value))}
-                  className="w-full p-3 bg-slate-800 border border-slate-700 text-white rounded-xl text-xs"
-                />
+                <label className={labelClass} htmlFor="wiz-lat">Latitude</label>
+                {numberInput('latitude', { id: 'wiz-lat', step: '0.0001', placeholder: 'Optional' })}
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1">Longitude</label>
-                <input
-                  type="number"
-                  step="0.0001"
-                  value={lng}
-                  onChange={(e) => setLng(parseFloat(e.target.value))}
-                  className="w-full p-3 bg-slate-800 border border-slate-700 text-white rounded-xl text-xs"
-                />
+                <label className={labelClass} htmlFor="wiz-lng">Longitude</label>
+                {numberInput('longitude', { id: 'wiz-lng', step: '0.0001', placeholder: 'Optional' })}
               </div>
             </div>
+            <p className={hintClass}>Coordinates are optional; they're for a map view later.</p>
           </div>
         )}
 
-        {/* Step 3: Capacity & Layout */}
         {currentStep === 3 && (
-          <div className="grid grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             <div>
-              <label className="block text-xs font-bold text-slate-300 mb-1">Max Guests</label>
-              <input
-                type="number"
-                value={maxGuests}
-                onChange={(e) => setMaxGuests(parseInt(e.target.value))}
-                className="w-full p-3 bg-slate-800 border border-slate-700 text-white rounded-xl text-xs"
-              />
+              <label className={labelClass} htmlFor="wiz-max">Max guests *</label>
+              {numberInput('max_guests', { id: 'wiz-max', min: 1, step: 1 })}
             </div>
             <div>
-              <label className="block text-xs font-bold text-slate-300 mb-1">Bedrooms</label>
-              <input
-                type="number"
-                value={bedrooms}
-                onChange={(e) => setBedrooms(parseInt(e.target.value))}
-                className="w-full p-3 bg-slate-800 border border-slate-700 text-white rounded-xl text-xs"
-              />
+              <label className={labelClass} htmlFor="wiz-base">Guests included in the price *</label>
+              {numberInput('base_guests', { id: 'wiz-base', min: 1, step: 1 })}
+              <p className={hintClass}>Guests above this pay the extra-guest fee (step 4).</p>
             </div>
             <div>
-              <label className="block text-xs font-bold text-slate-300 mb-1">Beds</label>
-              <input
-                type="number"
-                value={beds}
-                onChange={(e) => setBeds(parseInt(e.target.value))}
-                className="w-full p-3 bg-slate-800 border border-slate-700 text-white rounded-xl text-xs"
-              />
+              <label className={labelClass} htmlFor="wiz-bedrooms">Bedrooms</label>
+              {numberInput('bedrooms', { id: 'wiz-bedrooms', min: 0, step: 1, placeholder: 'Not specified' })}
             </div>
             <div>
-              <label className="block text-xs font-bold text-slate-300 mb-1">Bathrooms</label>
-              <input
-                type="number"
-                step="0.5"
-                value={bathrooms}
-                onChange={(e) => setBathrooms(parseFloat(e.target.value))}
-                className="w-full p-3 bg-slate-800 border border-slate-700 text-white rounded-xl text-xs"
-              />
+              <label className={labelClass} htmlFor="wiz-beds">Beds</label>
+              {numberInput('beds', { id: 'wiz-beds', min: 0, step: 1, placeholder: 'Not specified' })}
+            </div>
+            <div>
+              <label className={labelClass} htmlFor="wiz-baths">Bathrooms</label>
+              {numberInput('bathrooms', { id: 'wiz-baths', min: 0, step: 0.5, placeholder: 'Not specified' })}
             </div>
           </div>
         )}
 
-        {/* Step 4: Pricing & Policies */}
         {currentStep === 4 && (
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1">Base Nightly Rate (₹)</label>
-                <input
-                  type="number"
-                  value={pricePerNight}
-                  onChange={(e) => setPricePerNight(parseInt(e.target.value))}
-                  className="w-full p-3 bg-slate-800 border border-slate-700 text-white rounded-xl text-xs font-bold"
-                />
+                <label className={labelClass} htmlFor="wiz-price">Nightly price (₹) *</label>
+                {numberInput('price_per_night', { id: 'wiz-price', min: 0, step: 1 })}
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1">Weekend Surge Rate (₹)</label>
-                <input
-                  type="number"
-                  value={weekendSurgePrice}
-                  onChange={(e) => setWeekendSurgePrice(parseInt(e.target.value))}
-                  className="w-full p-3 bg-slate-800 border border-slate-700 text-white rounded-xl text-xs"
-                />
+                <label className={labelClass} htmlFor="wiz-weekend">Friday & Saturday price (₹)</label>
+                {numberInput('weekend_surge_price', { id: 'wiz-weekend', min: 0, step: 1, placeholder: 'Same as nightly' })}
               </div>
             </div>
-
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1">Cleaning Fee (₹)</label>
-                <input
-                  type="number"
-                  value={cleaningFee}
-                  onChange={(e) => setCleaningFee(parseInt(e.target.value))}
-                  className="w-full p-3 bg-slate-800 border border-slate-700 text-white rounded-xl text-xs"
-                />
+                <label className={labelClass} htmlFor="wiz-extra">Extra guest fee (₹ / night)</label>
+                {numberInput('extra_guest_fee', { id: 'wiz-extra', min: 0, step: 1 })}
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1">IvStay to pay to hotel %</label>
-                <input
-                  type="number"
-                  value={serviceFeePct}
-                  onChange={(e) => setServiceFeePct(parseInt(e.target.value))}
-                  className="w-full p-3 bg-slate-800 border border-slate-700 text-white rounded-xl text-xs"
-                />
+                <label className={labelClass} htmlFor="wiz-cleaning">Cleaning fee (₹ per stay)</label>
+                {numberInput('cleaning_fee', { id: 'wiz-cleaning', min: 0, step: 1 })}
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1">Min Nights Stay</label>
-                <input
-                  type="number"
-                  value={minNights}
-                  onChange={(e) => setMinNights(parseInt(e.target.value))}
-                  className="w-full p-3 bg-slate-800 border border-slate-700 text-white rounded-xl text-xs"
-                />
+                <label className={labelClass} htmlFor="wiz-service">Service fee (%)</label>
+                {numberInput('service_fee_pct', { id: 'wiz-service', min: 0, max: 100, step: 0.5 })}
+                <p className={hintClass}>Added to the guest's total.</p>
               </div>
             </div>
-
-            <div>
-              <label className="block text-xs font-bold text-slate-300 mb-1">Cancellation Policy</label>
-              <select
-                value={cancellationPolicy}
-                onChange={(e) => setCancellationPolicy(e.target.value as any)}
-                className="w-full p-3 bg-slate-800 border border-slate-700 text-white rounded-xl text-xs"
-              >
-                <option value="Flexible">Flexible (100% refund up to 48 hrs prior)</option>
-                <option value="Moderate">Moderate (50% refund up to 5 days prior)</option>
-                <option value="Strict">Strict (Non-refundable after booking)</option>
-              </select>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className={labelClass} htmlFor="wiz-min">Minimum stay (nights)</label>
+                {numberInput('min_nights', { id: 'wiz-min', min: 1, step: 1 })}
+              </div>
+              <div>
+                <label className={labelClass} htmlFor="wiz-cancel">Cancellation policy</label>
+                <select id="wiz-cancel" value={form.cancellation_policy} onChange={(e) => set('cancellation_policy', e.target.value as CancellationPolicy)} className={inputClass}>
+                  <option value="Flexible">Flexible</option>
+                  <option value="Moderate">Moderate</option>
+                  <option value="Strict">Strict</option>
+                </select>
+              </div>
             </div>
           </div>
         )}
 
-        {/* Step 5: Amenities */}
         {currentStep === 5 && (
-          <div className="space-y-3">
-            <label className="block text-xs font-bold text-slate-300 mb-2">
-              Select Luxury Amenities & Inclusions
-            </label>
+          <div className="space-y-4">
+            <p className={labelClass}>Amenities</p>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              {availableAmenities.map((amenity) => {
-                const isChecked = amenities.includes(amenity);
+              {COMMON_AMENITIES.map((amenity) => {
+                const checked = form.amenities.includes(amenity);
                 return (
                   <button
                     key={amenity}
                     type="button"
                     onClick={() => toggleAmenity(amenity)}
+                    aria-pressed={checked}
                     className={`flex items-center gap-2 p-3 rounded-xl border text-xs font-semibold transition-colors text-left ${
-                      isChecked
-                        ? 'bg-amber-500/20 border-brand-gold text-amber-300'
-                        : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-white'
+                      checked ? 'bg-amber-500/20 border-brand-gold text-amber-300' : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-white'
                     }`}
                   >
-                    <div
-                      className={`w-4 h-4 rounded flex items-center justify-center border ${
-                        isChecked ? 'bg-brand-gold border-brand-gold text-white' : 'border-slate-600'
-                      }`}
-                    >
-                      {isChecked && <Check className="w-3 h-3 stroke-[3]" />}
-                    </div>
+                    <span className={`w-4 h-4 rounded flex items-center justify-center border shrink-0 ${checked ? 'bg-brand-gold border-brand-gold text-white' : 'border-slate-600'}`}>
+                      {checked && <Check className="w-3 h-3 stroke-[3]" />}
+                    </span>
                     <span className="truncate">{amenity}</span>
                   </button>
                 );
               })}
             </div>
+            <div>
+              <label className={labelClass} htmlFor="wiz-amenity">Something else?</label>
+              <div className="flex gap-2">
+                <input
+                  id="wiz-amenity"
+                  type="text"
+                  value={customAmenity}
+                  onChange={(e) => setCustomAmenity(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      addCustomAmenity();
+                    }
+                  }}
+                  placeholder="e.g. Orchard walks"
+                  className={inputClass}
+                />
+                <Button type="button" variant="gold" size="sm" onClick={addCustomAmenity}>
+                  <Plus className="w-4 h-4" />
+                </Button>
+              </div>
+              {customAmenities.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-3">
+                  {customAmenities.map((a) => (
+                    <span key={a} className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-amber-500/20 border border-brand-gold text-amber-300 text-xs font-semibold">
+                      {a}
+                      <button type="button" onClick={() => toggleAmenity(a)} aria-label={`Remove ${a}`}>
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
 
-        {/* Step 6: Multi-Media Uploader */}
         {currentStep === 6 && (
           <div className="space-y-4">
-            <div className="p-6 bg-slate-800/80 border-2 border-dashed border-slate-700 rounded-2xl text-center space-y-2">
+            <div className="p-6 bg-slate-800/80 border-2 border-dashed border-slate-700 rounded-2xl text-center space-y-3">
               <UploadCloud className="w-8 h-8 text-brand-gold mx-auto" />
-              <p className="text-xs font-bold text-white">Add Photo URL or Upload File</p>
-              <div className="flex flex-col gap-3 max-w-md mx-auto">
+              <p className="text-xs font-bold text-white">Upload photos (JPG, PNG or WebP, up to 10 MB each)</p>
+              {source === 'database' ? (
                 <input
+                  ref={fileInput}
                   type="file"
-                  accept="image/*"
-                  className="w-full p-2 bg-slate-900 border border-slate-700 text-white rounded-xl text-xs file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-brand-gold file:text-white hover:file:bg-brand-goldHover"
+                  accept="image/jpeg,image/png,image/webp,image/avif"
+                  multiple
+                  disabled={uploading > 0}
+                  onChange={(e) => void handleFiles(e.target.files)}
+                  aria-label="Upload photos"
+                  className="w-full max-w-md mx-auto p-2 bg-slate-900 border border-slate-700 text-white rounded-xl text-xs file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-brand-gold file:text-white hover:file:bg-brand-goldHover"
                 />
-                <div className="flex gap-2">
+              ) : (
+                <p className="text-[11px] text-slate-400">Uploading needs the Supabase backend (see README). You can paste image links below.</p>
+              )}
+              {uploading > 0 && <p className="text-[11px] text-amber-300">Uploading {uploading} photo{uploading > 1 ? 's' : ''}…</p>}
+              <div className="flex gap-2 max-w-md mx-auto">
+                <div className="relative flex-1">
+                  <Link2 className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
                   <input
-                    type="text"
-                    value={newImageUrl}
-                    onChange={(e) => setNewImageUrl(e.target.value)}
-                    placeholder="https://images.unsplash.com/..."
-                    className="flex-1 p-2.5 bg-slate-900 border border-slate-700 text-white rounded-xl text-xs"
+                    type="url"
+                    value={newPhotoUrl}
+                    onChange={(e) => setNewPhotoUrl(e.target.value)}
+                    placeholder="Or paste an image link (https://…)"
+                    className={`${inputClass} pl-9`}
+                    aria-label="Image link"
                   />
-                  <Button onClick={addImage} variant="gold" size="sm">
-                    Add Photo
-                  </Button>
                 </div>
+                <Button type="button" onClick={addPhotoLink} variant="gold" size="sm">
+                  Add
+                </Button>
               </div>
             </div>
 
-            {/* Photo List */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-2">
-              {images.map((img, idx) => (
-                <div key={idx} className="relative group rounded-xl overflow-hidden h-28 border border-slate-700">
-                  <img src={img} alt={`Uploaded ${idx}`} className="w-full h-full object-cover" />
-                  {idx === 0 && (
-                    <span className="absolute top-1 left-1 bg-brand-gold text-white text-[9px] font-bold px-1.5 py-0.5 rounded">
-                      Thumbnail Cover
-                    </span>
-                  )}
-                  <button
-                    onClick={() => removeImage(idx)}
-                    className="absolute top-1 right-1 p-1 bg-rose-600 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              ))}
-            </div>
+            {form.photos.length > 0 ? (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-2">
+                {form.photos.map((photo, index) => (
+                  <div key={`${photo.storage_path ?? photo.url}-${index}`} className="relative group rounded-xl overflow-hidden h-28 border border-slate-700 bg-slate-800">
+                    <img src={photo.url} alt={photo.alt_text || `Photo ${index + 1}`} className="w-full h-full object-cover" />
+                    {index === 0 ? (
+                      <span className="absolute top-1 left-1 bg-brand-gold text-white text-[9px] font-bold px-1.5 py-0.5 rounded">Cover</span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => makeCover(index)}
+                        className="absolute top-1 left-1 bg-slate-900/80 text-white text-[9px] font-bold px-1.5 py-0.5 rounded flex items-center gap-1 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
+                      >
+                        <Star className="w-3 h-3" /> Make cover
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => removePhoto(index)}
+                      className="absolute top-1 right-1 p-1 bg-rose-600 text-white rounded-full opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
+                      aria-label={`Remove photo ${index + 1}`}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-slate-500 text-center">No photos yet. The first photo becomes the cover.</p>
+            )}
           </div>
         )}
 
-        {/* Step 7: Publishing & Review */}
         {currentStep === 7 && (
           <div className="space-y-6">
-            <div className="p-6 bg-slate-800 rounded-2xl border border-slate-700 space-y-3">
-              <h4 className="font-serif text-lg font-bold text-white">Final Review Summary</h4>
-              <p className="text-xs text-slate-300">
-                Title: <strong className="text-white">{title || 'Untitled'}</strong>
+            <div className="p-6 bg-slate-800 rounded-2xl border border-slate-700 space-y-2 text-xs text-slate-300">
+              <h4 className="font-serif text-lg font-bold text-white">Summary</h4>
+              <p>Title: <strong className="text-white">{form.title || 'Untitled'}</strong></p>
+              <p>Location: <strong className="text-white">{[form.city, form.state].filter(Boolean).join(', ') || '—'}</strong></p>
+              <p>
+                Nightly price: <strong className="text-brand-gold">{form.price_per_night ? `₹${Number(form.price_per_night).toLocaleString('en-IN')}` : '—'}</strong>
+                {' · '}Sleeps {form.max_guests || '—'} ({form.base_guests || '—'} included)
               </p>
-              <p className="text-xs text-slate-300">
-                City: <strong className="text-white">{city}</strong> • Nightly Rate:{' '}
-                <strong className="text-brand-gold">₹{pricePerNight}</strong>
-              </p>
-              <p className="text-xs text-slate-300">Total Uploaded Media: {images.length} photos</p>
+              <p>Photos: {form.photos.length}</p>
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-300 mb-2">Publishing Status</label>
-              <div className="flex gap-4">
-                <button
-                  type="button"
-                  onClick={() => setStatus('active')}
-                  className={`flex-1 p-4 rounded-2xl border text-xs font-bold transition-colors ${
-                    status === 'active'
-                      ? 'bg-emerald-500/20 border-emerald-500 text-emerald-300'
-                      : 'bg-slate-800 border-slate-700 text-slate-400'
-                  }`}
-                >
-                  Active (Live on Guest Portal)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setStatus('draft')}
-                  className={`flex-1 p-4 rounded-2xl border text-xs font-bold transition-colors ${
-                    status === 'draft'
-                      ? 'bg-amber-500/20 border-amber-500 text-amber-300'
-                      : 'bg-slate-800 border-slate-700 text-slate-400'
-                  }`}
-                >
-                  Draft (Hidden)
-                </button>
+              <p className={labelClass}>Visibility</p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {([
+                  ['active', 'Live on the site', 'bg-emerald-500/20 border-emerald-500 text-emerald-300'],
+                  ['draft', 'Draft (hidden)', 'bg-amber-500/20 border-amber-500 text-amber-300'],
+                  ['archived', 'Archived (hidden)', 'bg-slate-700 border-slate-500 text-slate-200'],
+                ] as const).map(([value, label, activeClass]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => set('status', value)}
+                    aria-pressed={form.status === value}
+                    className={`p-4 rounded-2xl border text-xs font-bold transition-colors ${
+                      form.status === value ? activeClass : 'bg-slate-800 border-slate-700 text-slate-400'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
               </div>
+            </div>
+
+            <div className="space-y-3">
+              <label className="flex items-start gap-3 text-xs text-slate-300 cursor-pointer">
+                <input type="checkbox" checked={form.is_verified} onChange={(e) => set('is_verified', e.target.checked)} className="mt-0.5 accent-amber-500" />
+                <span>
+                  <strong className="text-white">IvStay verified</strong>
+                  <span className="block text-slate-500">Tick only once the team has checked this stay. Shows a “Verified” badge.</span>
+                </span>
+              </label>
+              <label className="flex items-start gap-3 text-xs text-slate-300 cursor-pointer">
+                <input type="checkbox" checked={form.is_featured} onChange={(e) => set('is_featured', e.target.checked)} className="mt-0.5 accent-amber-500" />
+                <span>
+                  <strong className="text-white">Featured</strong>
+                  <span className="block text-slate-500">Shows a “Curated Collection” badge on its card.</span>
+                </span>
+              </label>
             </div>
           </div>
         )}
 
-        {/* Wizard Footer Navigation */}
+        {/* Footer navigation */}
         <div className="flex items-center justify-between pt-6 border-t border-slate-800">
           <Button
             type="button"
@@ -587,23 +717,26 @@ export const PropertyWizard: React.FC<PropertyWizardProps> = ({ existingProperty
             className="text-white border-slate-700"
           >
             <ChevronLeft className="w-4 h-4 mr-1" />
-            Previous Step
+            Back
           </Button>
 
-          {currentStep < 7 ? (
-            <Button
-              type="button"
-              onClick={() => setCurrentStep((prev) => Math.min(7, prev + 1))}
-              variant="gold"
-              size="sm"
-            >
-              Next Step
+          {currentStep < steps.length ? (
+            <Button type="button" onClick={() => setCurrentStep((prev) => Math.min(steps.length, prev + 1))} variant="gold" size="sm">
+              Next
               <ChevronRight className="w-4 h-4 ml-1" />
             </Button>
           ) : (
-            <Button type="button" onClick={handleFinishWizard} variant="gold" size="sm" className="shadow-gold-glow">
+            <Button
+              type="button"
+              onClick={() => void handleSave()}
+              variant="gold"
+              size="sm"
+              isLoading={saving}
+              disabled={uploading > 0}
+              className="shadow-gold-glow"
+            >
               <CheckCircle className="w-4 h-4 mr-1" />
-              Save & Publish Property
+              {form.status === 'active' ? 'Save and publish' : 'Save'}
             </Button>
           )}
         </div>

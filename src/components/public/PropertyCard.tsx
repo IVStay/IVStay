@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { formatINR } from '../../utils/currency';
+import { stayPath } from '../../lib/links';
 import { Heart, Star, ChevronLeft, ChevronRight, MapPin, Users, Bed, Bath } from 'lucide-react';
 import { Property } from '../../types';
 import { Badge } from '../ui/Badge';
@@ -17,7 +18,7 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({ property }) => {
   const [currentImgIndex, setCurrentImgIndex] = useState(0);
   // Carry the current search (dates/guests) through to the detail page
   const { search } = useLocation();
-  const detailHref = `/stays/${property.id}${search}`;
+  const detailHref = `${stayPath(property)}${search}`;
 
   const favorited = isWishlisted(property.id);
 
@@ -154,14 +155,18 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({ property }) => {
               <Users className="w-3.5 h-3.5 text-slate-400" />
               <span>{property.max_guests} Guests</span>
             </div>
-            <div className="flex items-center gap-1" title="Bedrooms">
-              <Bed className="w-3.5 h-3.5 text-slate-400" />
-              <span>{property.bedrooms} Beds</span>
-            </div>
-            <div className="flex items-center gap-1" title="Bathrooms">
-              <Bath className="w-3.5 h-3.5 text-slate-400" />
-              <span>{property.bathrooms} Baths</span>
-            </div>
+            {property.bedrooms != null && (
+              <div className="flex items-center gap-1" title="Bedrooms">
+                <Bed className="w-3.5 h-3.5 text-slate-400" />
+                <span>{property.bedrooms} Bedrooms</span>
+              </div>
+            )}
+            {property.bathrooms != null && (
+              <div className="flex items-center gap-1" title="Bathrooms">
+                <Bath className="w-3.5 h-3.5 text-slate-400" />
+                <span>{property.bathrooms} Baths</span>
+              </div>
+            )}
           </div>
         </div>
 

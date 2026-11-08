@@ -13,7 +13,7 @@ export const ExecutiveKPIs: React.FC<ExecutiveKPIsProps> = ({ properties, bookin
     .reduce((sum, b) => sum + b.total_price, 0);
 
   const totalActiveBookings = bookings.filter(
-    (b) => b.booking_status === 'confirmed' || b.booking_status === 'pending'
+    (b) => b.booking_status === 'confirmed' || b.booking_status === 'awaiting_payment'
   ).length;
 
   const activeProperties = properties.filter((p) => p.status === 'active');

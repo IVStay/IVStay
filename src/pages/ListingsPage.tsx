@@ -68,8 +68,8 @@ export const ListingsPage: React.FC<ListingsPageProps> = ({ defaultCategory = 'a
     }
 
     // Bedrooms / Bathrooms
-    if (filterState.bedrooms > 0 && p.bedrooms < filterState.bedrooms) return false;
-    if (filterState.bathrooms > 0 && p.bathrooms < filterState.bathrooms) return false;
+    if (filterState.bedrooms > 0 && (p.bedrooms ?? 0) < filterState.bedrooms) return false;
+    if (filterState.bathrooms > 0 && (p.bathrooms ?? 0) < filterState.bathrooms) return false;
 
     // Amenities
     if (filterState.amenities.length > 0) {

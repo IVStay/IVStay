@@ -3,6 +3,7 @@ import { Property } from '../../types';
 import { MapPin, Star, Sparkles, Navigation } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { formatINR } from '../../utils/currency';
+import { stayPath } from '../../lib/links';
 
 interface InteractiveMapProps {
   properties: Property[];
@@ -90,8 +91,12 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({ properties }) =>
                   <Star className="w-3.5 h-3.5 fill-amber-400" />
                   <span>{selectedProp.review_count > 0 ? selectedProp.rating.toFixed(2) : 'New'}</span>
                 </div>
-                <span>•</span>
-                <span>{selectedProp.bedrooms} Bedrooms</span>
+                {selectedProp.bedrooms != null && (
+                  <>
+                    <span>•</span>
+                    <span>{selectedProp.bedrooms} Bedrooms</span>
+                  </>
+                )}
                 <span>•</span>
                 <span className="text-white font-bold">{formatINR(selectedProp.price_per_night)}/night</span>
               </div>
@@ -99,7 +104,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({ properties }) =>
           </div>
 
           <Link
-            to={`/stays/${selectedProp.id}`}
+            to={stayPath(selectedProp)}
             className="w-full sm:w-auto px-6 py-2.5 rounded-full bg-brand-gold text-white font-bold text-xs hover:bg-brand-goldHover transition-all text-center shadow-gold-glow shrink-0"
           >
             View Full Listing

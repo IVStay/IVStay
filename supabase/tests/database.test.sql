@@ -4,7 +4,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(39);
+select plan(46);
 
 -- ---------------------------------------------------------------------------
 -- Fixtures (inserted as the database owner, so access rules don't apply here)
@@ -123,6 +123,46 @@ select is(
   'Visitors cannot get quotes for draft properties'
 );
 
+-- Booking requests from the website
+select matches(
+  public.request_booking('bbbbbbbb-0000-0000-0000-000000000001', '2027-01-01', '2027-01-04',
+    'Rhea Kapoor', '+91 98765-43210', null, 3, 0, 'Late check-in') ->> 'reference',
+  '^IVS-[0-9]+$',
+  'Visitors can send a booking request and get a reference'
+);
+select throws_ok(
+  $$ select public.request_booking('bbbbbbbb-0000-0000-0000-000000000001', '2027-01-01', '2027-01-04',
+       'Rhea Kapoor', null, null, 2, 0, null) $$,
+  '22023', null,
+  'A booking request needs a phone number or email'
+);
+select throws_ok(
+  $$ select public.request_booking('bbbbbbbb-0000-0000-0000-000000000002', '2027-01-04', '2027-01-07',
+       'Rhea Kapoor', '+919876543210', null, 2, 0, null) $$,
+  '22023', null,
+  'Requests for unpublished stays are refused'
+);
+select throws_ok(
+  $$ select public.request_booking('bbbbbbbb-0000-0000-0000-000000000001', '2020-01-01', '2020-01-04',
+       'Rhea Kapoor', '+919876543210', null, 2, 0, null) $$,
+  '22023', null,
+  'Requests for past dates are refused'
+);
+select lives_ok(
+  $$ do $body$ begin
+       perform public.request_booking('bbbbbbbb-0000-0000-0000-000000000001', '2027-01-08', '2027-01-10',
+         'Rhea Kapoor', '+919876543210', null, 2, 0, null)
+       from generate_series(1, 4);
+     end $body$ $$,
+  'The same contact can send up to five requests an hour'
+);
+select throws_ok(
+  $$ select public.request_booking('bbbbbbbb-0000-0000-0000-000000000001', '2027-01-08', '2027-01-10',
+       'Rhea Kapoor', '+91 98765 43210', null, 2, 0, null) $$,
+  'P0001', null,
+  'A sixth request from the same contact within the hour is refused'
+);
+
 -- ---------------------------------------------------------------------------
 -- Admin who has only typed the password (no two-step code yet)
 -- ---------------------------------------------------------------------------
@@ -151,6 +191,12 @@ select set_config('request.jwt.claims',
   '{"sub":"aaaaaaaa-0000-0000-0000-000000000001","role":"authenticated","aal":"aal2"}', true);
 
 select is(public.is_admin(), true, 'A verified admin is treated as admin');
+select results_eq(
+  $$ select status, source, guest_phone, total_paise, special_requests
+     from public.bookings where guest_name = 'Rhea Kapoor' and check_in = '2027-01-01' $$,
+  $$ values ('enquiry', 'website', '+919876543210', 4930000::bigint, 'Late check-in') $$,
+  'A website request is saved as an enquiry, priced on the server, with a tidied phone number'
+);
 select is(
   (select count(*)::int from public.properties where city = 'Testville'),
   2,

@@ -10,6 +10,8 @@ import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
 import { whatsappLink } from '../config/contact';
 import { formatINR } from '../utils/currency';
+import { stayPath } from '../lib/links';
+import { useStayQuote } from '../hooks/useStayQuote';
 import {
   MapPin,
   Star,
@@ -35,9 +37,9 @@ export const PropertyDetailsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { getPropertyById, isWishlisted, toggleWishlist } = useProperties();
-  const { setDraftBooking } = useBookings();
-  const { showSuccess, showInfo } = useToast();
+  const { getPropertyById, isWishlisted, toggleWishlist, loading } = useProperties();
+  const { requestBooking } = useBookings();
+  const { showSuccess, showInfo, showError } = useToast();
 
   const property = getPropertyById(id || '');
 
@@ -58,10 +60,17 @@ export const PropertyDetailsPage: React.FC = () => {
   const [checkOut, setCheckOut] = useState<string>(initialCheckOut);
   const [adults, setAdults] = useState(() => Math.max(1, parseInt(searchParams.get('guests') || '', 10) || 2));
   const [children, setChildren] = useState(0);
-  const [pets, setPets] = useState(0);
   const [isGuestPickerOpen, setIsGuestPickerOpen] = useState(false);
+  const [guestName, setGuestName] = useState('');
+  const [guestPhone, setGuestPhone] = useState('');
+  const [formError, setFormError] = useState<string | null>(null);
+  const [reserving, setReserving] = useState(false);
+  const { quote, isEstimate, unavailable } = useStayQuote(property, checkIn, checkOut, adults, children);
 
   if (!property) {
+    if (loading) {
+      return <div className="max-w-7xl mx-auto px-4 py-24 text-center text-xs text-slate-500">Loading the stay…</div>;
+    }
     return (
       <div className="max-w-7xl mx-auto px-4 py-24 text-center space-y-4">
         <h2 className="font-serif text-3xl font-bold text-brand-slate">Property Not Found</h2>
@@ -75,17 +84,13 @@ export const PropertyDetailsPage: React.FC = () => {
 
   const favorited = isWishlisted(property.id);
 
-  // Date calculations & itemized price breakdown
-  const rawNights = differenceInCalendarDays(parseISO(checkOut), parseISO(checkIn));
-  const numNights = Number.isFinite(rawNights) ? Math.max(1, rawNights) : 1;
   const totalGuests = adults + children;
+  const nights = quote?.nights ?? 0;
   const propertyReviews = MOCK_REVIEWS.filter((r) => r.property_id === property.id);
   const hasRating = property.review_count > 0;
-
-  const baseNightlyTotal = property.price_per_night * numNights;
-  const cleaningFee = property.cleaning_fee;
-  const serviceFee = Math.round(baseNightlyTotal * (property.service_fee_pct / 100));
-  const grandTotal = baseNightlyTotal + cleaningFee + serviceFee;
+  // Native date pickers can't grey out dates, so list what's taken
+  const takenSoon = unavailable.filter((r) => r.ends_on > today).slice(0, 4);
+  const shortDate = (iso: string) => format(parseISO(iso), 'd MMM');
 
   const handleWishlistToggle = () => {
     toggleWishlist(property.id);
@@ -109,16 +114,61 @@ export const PropertyDetailsPage: React.FC = () => {
     }
   };
 
-  const handleReserveClick = () => {
+  const handleReserveClick = async () => {
+    setFormError(null);
+    if (guestName.trim().length < 2 || guestPhone.replace(/\D/g, '').length < 8) {
+      setFormError('Add your name and WhatsApp number so we can confirm your stay.');
+      return;
+    }
+    // Open the tab now, while the click still counts as the user's action (popup blockers),
+    // and send it to WhatsApp once the request is saved.
+    const popup = window.open('about:blank', '_blank');
+    if (popup) popup.opener = null;
+    setReserving(true);
+    let reference = '';
+    try {
+      ({ reference } = await requestBooking(
+        {
+          propertyId: property.id,
+          checkIn,
+          checkOut,
+          guestName: guestName.trim(),
+          guestPhone: guestPhone.trim(),
+          adults,
+          children,
+        },
+        property
+      ));
+      showSuccess('Request sent', `Reference ${reference}. We'll confirm on WhatsApp.`);
+    } catch (error) {
+      const code = (error as { code?: string }).code;
+      const message = error instanceof Error ? error.message : String(error);
+      if (code === '22023') {
+        // Something to fix in the form: don't open WhatsApp
+        popup?.close();
+        setFormError(message);
+        setReserving(false);
+        return;
+      }
+      showError("Couldn't save your request", `${message} You can still send it on WhatsApp.`);
+    }
+    setReserving(false);
+
     const message = [
       `Hi IvStay, I'd like to book ${property.title} (${property.city}).`,
+      reference ? `Reference: ${reference}` : null,
       `Check-in: ${checkIn}`,
-      `Check-out: ${checkOut} (${numNights} night${numNights > 1 ? 's' : ''})`,
+      `Check-out: ${checkOut} (${nights} night${nights === 1 ? '' : 's'})`,
       `Guests: ${totalGuests}`,
-      `Estimated total: ${formatINR(grandTotal)}`,
-      `Link: ${window.location.origin}/stays/${property.id}`,
-    ].join('\n');
-    window.open(whatsappLink(message), '_blank', 'noopener');
+      quote && quote.total > 0 ? `Estimated total: ${formatINR(quote.total)}` : null,
+      `Name: ${guestName.trim()}`,
+      `Link: ${window.location.origin}${stayPath(property)}`,
+    ]
+      .filter(Boolean)
+      .join('\n');
+    const url = whatsappLink(message);
+    if (popup) popup.location.href = url;
+    else window.location.href = url;
   };
 
   const handleContactClick = () => {
@@ -210,14 +260,21 @@ export const PropertyDetailsPage: React.FC = () => {
               <Users className="w-4 h-4 text-brand-gold" />
               <span>{property.max_guests} Guests</span>
             </div>
-            <div className="flex items-center gap-2 text-xs font-semibold text-slate-700">
-              <Bed className="w-4 h-4 text-brand-gold" />
-              <span>{property.bedrooms} Bedrooms ({property.beds} Beds)</span>
-            </div>
-            <div className="flex items-center gap-2 text-xs font-semibold text-slate-700">
-              <Bath className="w-4 h-4 text-brand-gold" />
-              <span>{property.bathrooms} Bathrooms</span>
-            </div>
+            {property.bedrooms != null && (
+              <div className="flex items-center gap-2 text-xs font-semibold text-slate-700">
+                <Bed className="w-4 h-4 text-brand-gold" />
+                <span>
+                  {property.bedrooms} Bedroom{property.bedrooms === 1 ? '' : 's'}
+                  {property.beds != null ? ` (${property.beds} beds)` : ''}
+                </span>
+              </div>
+            )}
+            {property.bathrooms != null && (
+              <div className="flex items-center gap-2 text-xs font-semibold text-slate-700">
+                <Bath className="w-4 h-4 text-brand-gold" />
+                <span>{property.bathrooms} Bathroom{property.bathrooms === 1 ? '' : 's'}</span>
+              </div>
+            )}
           </div>
 
           {/* Highlights: only claims that apply to every verified listing */}
@@ -366,7 +423,6 @@ export const PropertyDetailsPage: React.FC = () => {
                 >
                   <span>
                     {totalGuests} Guest{totalGuests > 1 ? 's' : ''}
-                    {pets > 0 ? `, ${pets} Pet` : ''}
                   </span>
                   <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
                 </button>
@@ -393,46 +449,127 @@ export const PropertyDetailsPage: React.FC = () => {
                         </button>
                       </div>
                     </div>
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="font-bold">Children</span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setChildren(Math.max(0, children - 1))}
+                          className="w-6 h-6 rounded-full border flex items-center justify-center"
+                          aria-label="Fewer children"
+                        >
+                          -
+                        </button>
+                        <span className="font-bold">{children}</span>
+                        <button
+                          type="button"
+                          onClick={() => setChildren(children + 1)}
+                          className="w-6 h-6 rounded-full border flex items-center justify-center"
+                          aria-label="More children"
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+                    <p className="text-[10px] text-slate-400">
+                      Price includes {property.base_guests} guest{property.base_guests === 1 ? '' : 's'}; sleeps up to {property.max_guests}.
+                    </p>
                   </div>
                 )}
               </div>
             </div>
 
-            {/* Itemized Cost Breakdown */}
-            <div className="space-y-2.5 text-xs text-slate-600 pt-2">
-              <div className="flex justify-between">
-                <span>
-                  {formatINR(property.price_per_night)} × {numNights} night{numNights > 1 ? 's' : ''}
-                </span>
-                <span className="font-semibold">{formatINR(baseNightlyTotal)}</span>
+            {takenSoon.length > 0 && (
+              <p className="text-[11px] text-slate-500">
+                Already taken: {takenSoon.map((r) => `${shortDate(r.starts_on)} – ${shortDate(r.ends_on)}`).join(', ')}
+              </p>
+            )}
+
+            {/* Price breakdown (from the server's quote) */}
+            {quote && quote.nights > 0 && (
+              <div className="space-y-2.5 text-xs text-slate-600 pt-2" aria-live="polite">
+                <div className="flex justify-between">
+                  <span>
+                    {nights} night{nights === 1 ? '' : 's'}
+                    {quote.weekend_nights > 0 && property.weekend_surge_price
+                      ? ` (incl. ${quote.weekend_nights} Fri/Sat at ${formatINR(property.weekend_surge_price)})`
+                      : ` × ${formatINR(property.price_per_night)}`}
+                  </span>
+                  <span className="font-semibold">{formatINR(quote.nightly_total)}</span>
+                </div>
+                {quote.extra_guest_total > 0 && (
+                  <div className="flex justify-between">
+                    <span>
+                      {quote.extra_guests} extra guest{quote.extra_guests === 1 ? '' : 's'} × {formatINR(property.extra_guest_fee)} × {nights} night{nights === 1 ? '' : 's'}
+                    </span>
+                    <span className="font-semibold">{formatINR(quote.extra_guest_total)}</span>
+                  </div>
+                )}
+                {quote.cleaning_fee > 0 && (
+                  <div className="flex justify-between">
+                    <span>Cleaning fee</span>
+                    <span className="font-semibold">{formatINR(quote.cleaning_fee)}</span>
+                  </div>
+                )}
+                {quote.service_fee > 0 && (
+                  <div className="flex justify-between">
+                    <span>Service fee ({property.service_fee_pct}%)</span>
+                    <span className="font-semibold">{formatINR(quote.service_fee)}</span>
+                  </div>
+                )}
+                <div className="pt-3 border-t border-slate-200 flex justify-between text-sm font-bold text-brand-slate">
+                  <span>{isEstimate ? 'Estimated total' : 'Total'}</span>
+                  <span className="font-serif text-xl text-brand-gold">{formatINR(quote.total)}</span>
+                </div>
               </div>
-              <div className="flex justify-between">
-                <span>Cleaning & Hospitality Fee</span>
-                <span className="font-semibold">{formatINR(cleaningFee)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Service fee ({property.service_fee_pct}%)</span>
-                <span className="font-semibold">{formatINR(serviceFee)}</span>
-              </div>
-              <div className="pt-3 border-t border-slate-200 flex justify-between text-sm font-bold text-brand-slate">
-                <span>Estimated Total</span>
-                <span className="font-serif text-xl text-brand-gold">{formatINR(grandTotal)}</span>
-              </div>
-              {numNights < minNights && (
-                <p className="text-[11px] font-semibold text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
-                  This stay has a minimum of {minNights} nights.
+            )}
+            {quote && quote.problems.length > 0 && (
+              <ul className="text-[11px] font-semibold text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 space-y-0.5">
+                {quote.problems.map((problem) => (
+                  <li key={problem}>{problem}</li>
+                ))}
+              </ul>
+            )}
+
+            {/* Contact details for the request */}
+            <div className="space-y-2">
+              <input
+                type="text"
+                value={guestName}
+                onChange={(e) => setGuestName(e.target.value)}
+                placeholder="Your name"
+                autoComplete="name"
+                aria-label="Your name"
+                className="w-full px-3 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-brand-slate"
+              />
+              <input
+                type="tel"
+                value={guestPhone}
+                onChange={(e) => setGuestPhone(e.target.value)}
+                placeholder="WhatsApp number, e.g. +91 98765 43210"
+                autoComplete="tel"
+                aria-label="WhatsApp number"
+                className="w-full px-3 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-brand-slate"
+              />
+              {formError && (
+                <p role="alert" className="text-[11px] font-semibold text-rose-600">
+                  {formError}
                 </p>
               )}
             </div>
 
-            {/* Instant Reserve CTA */}
-            <Button onClick={handleReserveClick} variant="gold" className="w-full py-4 text-sm font-bold shadow-gold-glow">
-              Reserve via WhatsApp
+            <Button
+              onClick={() => void handleReserveClick()}
+              variant="gold"
+              isLoading={reserving}
+              className="w-full py-4 text-sm font-bold shadow-gold-glow"
+            >
+              Request to book on WhatsApp
             </Button>
 
             <div className="flex items-center justify-center gap-1.5 text-[11px] text-slate-400 text-center">
               <Info className="w-3.5 h-3.5 text-brand-gold" />
-              <span>You will not be charged until final review.</span>
+              <span>Nothing is charged now. We confirm availability on WhatsApp first.</span>
             </div>
           </div>
         </div>

@@ -17,9 +17,10 @@ npm run test:db    # database tests in an in-memory Postgres (no Docker needed)
 npm run build      # production build in dist/
 ```
 
-Without Supabase settings the dev server still works: listings are kept in your browser, and
-`/admin/login` offers a **Continue as local admin (dev only)** button. That button never appears
-in production builds.
+With Supabase settings in `.env.local`, everything reads and writes the database. Without them
+the dev server still works: listings, bookings and blocked dates are kept in your browser, photo
+upload is switched off (paste image links instead), and `/admin/login` offers a **Continue as
+local admin (dev only)** button. That button never appears in production builds.
 
 ## Backend setup (hosted Supabase project)
 
@@ -30,7 +31,8 @@ in production builds.
    - Authentication → Multi-Factor: make sure **TOTP (authenticator app)** is enabled.
    - Authentication → URL Configuration: set the Site URL to your website's address.
    - Authentication → Password: minimum length 12.
-3. **Apply the schema** from the project root:
+3. **Apply the schema.** Either paste each file in `supabase/migrations/` into the dashboard's
+   **SQL Editor**, oldest first, and press Run; or use the CLI from the project root:
    ```bash
    npx supabase login
    npx supabase link --project-ref your-project-ref
@@ -50,8 +52,27 @@ in production builds.
    ```bash
    node --env-file=.env.local scripts/upload-listing-photos.mjs
    ```
-7. **Deploying:** set `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` in your host's
-   environment variables before building.
+7. **Deploy the website** (next section).
+
+## Deploying the website
+
+The site is a set of static files (`npm run build` → `dist/`), so any static host works. The host
+needs the whole project, including `partner_frontend/`, to build it.
+
+| Setting | Value |
+|---|---|
+| Build command | `npm run build` |
+| Output folder | `dist` |
+| Environment variables | `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY` (never the secret key) |
+
+- **Cloudflare Pages** (free plan allows business sites): connect the GitHub repository, or upload
+  from your machine with `npm run build` then `npx wrangler pages deploy dist`. Unknown paths are
+  served by the app automatically.
+- **Netlify**: `netlify.toml` already holds the build settings and the rule that keeps deep links
+  like `/stays/pinewood-manor-kasauli` working on refresh.
+- **Vercel**: the free Hobby plan doesn't allow commercial use.
+
+After adding your domain, put it in Supabase under Authentication → URL Configuration.
 
 ## Local Supabase (for development and tests)
 
@@ -67,11 +88,36 @@ npx supabase stop
 
 Local auth emails are captured by the Inbucket/Mailpit page that `supabase status` lists.
 
+`supabase/config.toml` sets `auto_expose_new_tables = false` to match new hosted projects, so
+every migration must grant the access it needs (see `20261108140000_explicit_grants.sql`).
+
+After changing the schema, regenerate the TypeScript types the app uses:
+
+```bash
+npx supabase gen types typescript --local > src/types/database.ts
+```
+
+## How bookings work
+
+1. A guest picks dates on a stay page and sees a price worked out by the database
+   (`quote_stay`: Friday/Saturday rate, extra-guest fee, cleaning and service fees).
+2. **Request to book** saves an **enquiry** through `request_booking` (name and WhatsApp number
+   required; at most 5 requests an hour per phone or email), then opens WhatsApp with the
+   booking reference (e.g. `IVS-1001`). Enquiries don't hold dates.
+3. In the admin **Bookings & Ledger** page you follow up, then move it to **Awaiting payment**
+   (dates held) or **Confirmed**. Record what the guest paid and what the owner is paid.
+4. The **Availability calendar** shows held and confirmed stays and blocked dates. The
+   database refuses bookings or blocks that overlap.
+
+Code map: `src/lib/db.ts` (all database calls; converts rupees ↔ paise), `src/lib/pricing.ts`
+(the same price rules for instant estimates and the no-Supabase mode), and the two data contexts
+in `src/context/`.
+
 ## How the data is protected
 
 - Every table has row level security. Visitors can read **active** stays, their photos and
-  published reviews, and call the `quote_stay`, `is_available` and `get_unavailable_ranges`
-  functions. Everything else is admin-only.
+  published reviews, and call the `quote_stay`, `is_available`, `get_unavailable_ranges` and
+  `request_booking` functions. Everything else is admin-only.
 - "Admin" means `profiles.role = 'admin'` **and** a session that passed two-step verification.
   Roles can't be changed through the API; use `scripts/create-admin.mjs` or SQL.
 - Money is stored as whole paise (`_paise` columns, ₹1 = 100). Prices are calculated by
@@ -81,6 +127,9 @@ Local auth emails are captured by the Inbucket/Mailpit page that `supabase statu
 
 ## Project status
 
-Phase 1 of the backend plan is done: schema, access rules, photo storage, admin login with
-two-step verification, seed data and tests. The site's listings, bookings and calendar still use
-browser storage until Phase 2 connects them to the database.
+- **Phase 1 (done):** schema, access rules, photo storage, admin login with two-step
+  verification, seed data and tests.
+- **Phase 2 (done):** the site reads and writes the database: listings with uploaded photos,
+  server-side prices, website booking requests, the bookings ledger and the availability calendar.
+- **Next (Phase 3):** Razorpay payment links and policy pages. Favorites are still kept in each
+  visitor's browser until guest accounts exist.

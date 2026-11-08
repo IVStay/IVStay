@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
-import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { Mail, Lock, User, Sparkles, Shield, Chrome } from 'lucide-react';
 
@@ -11,39 +10,25 @@ interface AuthModalProps {
 }
 
 export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
-  const { loginAsGuest, loginAsAdmin } = useAuth();
-  const { showSuccess, showError } = useToast();
+  // Guest accounts arrive in a later phase; admins sign in at /admin/login.
+  const { showInfo } = useToast();
   const [isRegister, setIsRegister] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-
-    // Check if user is logging into Admin
-    if (email.trim().toLowerCase() === 'arnavaggarwal3095@gmail.com') {
-      const ok = loginAsAdmin(email, password);
-      if (ok) {
-        showSuccess('Welcome back Admin!', 'Authenticated into IvStay Admin Console');
-        onClose();
-        return;
-      } else {
-        showError('Invalid Admin Password', 'Please check credentials');
-        return;
-      }
-    }
-
-    // Default Guest Login
-    loginAsGuest(email || 'guest@ivstay.com', fullName || 'Elena Rostova');
-    showSuccess('Welcome to IvStay!', 'Signed in successfully');
+  const comingSoon = () => {
+    showInfo('Guest accounts are coming soon', 'Reserve any stay on WhatsApp for now. Admins sign in at /admin/login.');
     onClose();
   };
 
-  const handleOAuth = (provider: string) => {
-    loginAsGuest(`guest.${provider.toLowerCase()}@ivstay.com`, `Elena (${provider} User)`);
-    showSuccess(`Authenticated via ${provider}`, 'Logged in seamlessly');
-    onClose();
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    comingSoon();
+  };
+
+  const handleOAuth = (_provider: string) => {
+    comingSoon();
   };
 
   return (

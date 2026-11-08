@@ -4,12 +4,19 @@ import { useAuth } from '../../context/AuthContext';
 import { LayoutDashboard, Building2, CalendarDays, LogOut, Shield, ArrowLeft, Sparkles } from 'lucide-react';
 
 export const AdminLayout: React.FC = () => {
-  const { user, logout } = useAuth();
+  const { user, isAdmin, loading, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
 
-  // Protected route gate
-  if (!user || user.role !== 'admin') {
+  // Protected route gate: wait for the saved session, then require a verified admin
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-slate-400 flex items-center justify-center text-xs">
+        Checking your session…
+      </div>
+    );
+  }
+  if (!user || !isAdmin) {
     return <Navigate to="/admin/login" replace state={{ from: location }} />;
   }
 
@@ -86,8 +93,8 @@ export const AdminLayout: React.FC = () => {
           </Link>
 
           <button
-            onClick={() => {
-              logout();
+            onClick={async () => {
+              await logout();
               navigate('/admin/login', { replace: true });
             }}
             className="w-full flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold text-rose-400 hover:bg-rose-950/40 transition-colors"

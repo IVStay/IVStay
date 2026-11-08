@@ -7,10 +7,12 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "tsc --noEmit",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:db": "node scripts/db-test/run.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.3.4",
+    "@supabase/supabase-js": "^2.119.0",
     "date-fns": "^3.3.1",
     "framer-motion": "^11.0.5",
     "lucide-react": "^0.330.0",
@@ -21,12 +23,14 @@
     "zod": "^3.22.4"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.15",
     "@types/node": "^20.11.19",
     "@types/react": "^18.2.55",
     "@types/react-dom": "^18.2.19",
     "@vitejs/plugin-react": "^4.2.1",
     "autoprefixer": "^10.4.17",
     "postcss": "^8.4.35",
+    "supabase": "^2.122.1",
     "tailwindcss": "^3.4.1",
     "typescript": "^5.3.3",
     "vite": "^5.1.4"

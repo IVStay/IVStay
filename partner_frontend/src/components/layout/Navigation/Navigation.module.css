@@ -14,9 +14,11 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: var(--space-6);
   width: 100%;
   padding: 0 var(--space-8);
   max-width: 1600px;
+  margin: 0 auto;
 }
 
 .logo {
@@ -33,15 +35,16 @@
   display: none;
 }
 
-/* Inline links only when there is room for them beside the action buttons */
-@media (min-width: 1280px) {
+/* Inline links only when there is room for them beside the action buttons. They sit in the
+   row between the logo and the buttons (not on top of it), so they can never overlap. */
+@media (min-width: 1360px) {
   .navLinks {
     display: flex;
+    flex: 1;
+    justify-content: center;
     gap: var(--space-6);
     align-items: center;
-    position: absolute;
-    left: 50%;
-    transform: translateX(-50%);
+    min-width: 0;
   }
 }
 
@@ -50,6 +53,7 @@
   font-weight: 500;
   color: var(--text-primary);
   letter-spacing: 0.02em;
+  white-space: nowrap;
 }
 
 .link:hover {
@@ -84,6 +88,7 @@
   padding: var(--space-2) var(--space-4);
   font-size: 0.85rem;
   font-weight: 500;
+  white-space: nowrap;
   display: flex;
   align-items: center;
   gap: var(--space-2);
@@ -103,6 +108,7 @@
   padding: var(--space-2) var(--space-5);
   font-size: 0.85rem;
   font-weight: 500;
+  white-space: nowrap;
   display: flex;
   align-items: center;
   gap: var(--space-2);
@@ -120,7 +126,7 @@
   display: flex;
 }
 
-@media (min-width: 1280px) {
+@media (min-width: 1360px) {
   .menuButton {
     display: none;
   }
@@ -139,7 +145,7 @@
   box-shadow: var(--shadow-lg);
 }
 
-@media (min-width: 1280px) {
+@media (min-width: 1360px) {
   .mobileMenu {
     display: none;
   }

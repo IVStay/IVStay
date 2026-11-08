@@ -50,7 +50,8 @@ const NAV_LINKS = [
   { href: '/contact', label: 'Contact' },
 ];
 
-const LIST_PROPERTY_HREF = whatsappLink("Hi IvStay, I'd like to list my property on IvStay.");
+const SIGN_IN_HREF = '/admin/login';
+const LIST_PROPERTY_HREF =whatsappLink("Hi IvStay, I'd like to list my property on IvStay.");
 
 export const Navigation = () => {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -78,7 +79,7 @@ export const Navigation = () => {
           <Link href="/stays" className={styles.iconButton} aria-label="Search stays" onClick={closeMenu}>
             <SearchIcon />
           </Link>
-          {/* Favorites and Sign In need guest accounts (backend) before they can do anything */}
+          {/* Favorites need guest accounts (backend) before they can do anything */}
           <button className={`${styles.iconButton} ${styles.hideOnMobile}`} aria-label="Favorites"><HeartIcon /></button>
           <a
             href={LIST_PROPERTY_HREF}
@@ -88,7 +89,10 @@ export const Navigation = () => {
           >
             List your property
           </a>
-          <button className={`${styles.outlineBtn} ${styles.hideOnMobile}`}><UserIcon /> Sign In</button>
+          {/* Only IvStay team accounts exist for now; guests book without an account */}
+          <Link href={SIGN_IN_HREF} className={`${styles.outlineBtn} ${styles.hideOnMobile}`} onClick={closeMenu}>
+            <UserIcon /> Sign In
+          </Link>
           <a href={`tel:${CONTACT_PHONE}`} className={styles.blackBtn} aria-label="Call IvStay">
             <PhoneIcon /> <span className={styles.callLabel}>Call Now</span>
           </a>
@@ -122,6 +126,9 @@ export const Navigation = () => {
           >
             List your property
           </a>
+          <Link href={SIGN_IN_HREF} className={styles.mobileLink} onClick={closeMenu}>
+            Sign In
+          </Link>
         </nav>
       )}
     </header>

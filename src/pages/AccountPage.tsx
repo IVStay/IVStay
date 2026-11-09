@@ -3,7 +3,8 @@ import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { format, parseISO } from 'date-fns';
 import { CalendarDays, LogOut, MessageCircle, Users } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { isValidPhone, PHONE_ERROR, PHONE_HINT } from '../lib/phone';
+import { isValidPhone, PHONE_ERROR, PHONE_REQUIRED } from '../lib/phone';
+import { PhoneInput } from '../components/ui/PhoneInput';
 import { useToast } from '../context/ToastContext';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
@@ -17,7 +18,7 @@ const field =
   'w-full px-4 py-3 text-sm bg-white border border-slate-200 rounded-xl focus:outline-none focus:border-brand-slate';
 
 const STATUS_NOTE: Partial<Record<BookingStatus, string>> = {
-  enquiry: "Request received. We're checking with the host and will contact you on WhatsApp.",
+  enquiry: "Request received. We're checking with the host and will contact you shortly.",
   awaiting_payment: 'Dates held for you. Complete the payment we shared to confirm.',
   confirmed: 'Confirmed. See you soon!',
 };
@@ -62,7 +63,8 @@ export const AccountPage: React.FC = () => {
     event.preventDefault();
     setProfileError(null);
     if (fullName.trim().length < 2) return setProfileError('Please enter your full name.');
-    if (phone.trim() && !isValidPhone(phone)) return setProfileError(PHONE_ERROR);
+    if (!phone) return setProfileError(PHONE_REQUIRED);
+    if (!isValidPhone(phone)) return setProfileError(PHONE_ERROR);
     setSaving(true);
     const result = await updateProfile({ fullName, phone });
     setSaving(false);
@@ -169,7 +171,7 @@ export const AccountPage: React.FC = () => {
           <h2 className="font-serif text-xl font-bold text-brand-slate">My details</h2>
           {missingPhone && (
             <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
-              Add your WhatsApp number so we can confirm bookings quickly.
+              Please add your phone number. We need it to confirm your bookings.
             </p>
           )}
           <form onSubmit={save} className="space-y-4" noValidate>
@@ -181,18 +183,9 @@ export const AccountPage: React.FC = () => {
             </div>
             <div>
               <label htmlFor="acc-phone" className="block text-xs font-semibold text-slate-600 mb-1.5">
-                WhatsApp number
+                Phone number <span className="text-rose-500">*</span>
               </label>
-              <input
-                id="acc-phone"
-                type="tel"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                autoComplete="tel"
-                placeholder="98765 43210"
-                className={field}
-              />
-              <p className="text-[11px] text-slate-400 mt-1">{PHONE_HINT}</p>
+              <PhoneInput id="acc-phone" value={phone} onChange={setPhone} required invalid={missingPhone && !phone} />
             </div>
             <div>
               <label htmlFor="acc-email" className="block text-xs font-semibold text-slate-600 mb-1.5">

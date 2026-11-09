@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useLocation, useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { isValidPhone, PHONE_ERROR } from '../lib/phone';
+import { isValidPhone, PHONE_ERROR, PHONE_REQUIRED } from '../lib/phone';
+import { PhoneInput } from '../components/ui/PhoneInput';
 import { useProperties } from '../context/PropertyContext';
 import { useBookings } from '../context/BookingContext';
 import { useToast } from '../context/ToastContext';
@@ -134,7 +135,7 @@ export const PropertyDetailsPage: React.FC = () => {
       return;
     }
     if (!isValidPhone(guestPhone)) {
-      setFormError(guestPhone.trim() ? PHONE_ERROR : 'Add your WhatsApp number so we can confirm your stay.');
+      setFormError(guestPhone ? PHONE_ERROR : PHONE_REQUIRED);
       return;
     }
     // Open the tab now, while the click still counts as the user's action (popup blockers),
@@ -575,15 +576,7 @@ export const PropertyDetailsPage: React.FC = () => {
                 aria-label="Your name"
                 className="w-full px-3 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-brand-slate"
               />
-              <input
-                type="tel"
-                value={guestPhone}
-                onChange={(e) => setGuestPhone(e.target.value)}
-                placeholder="WhatsApp number, e.g. 98765 43210"
-                autoComplete="tel"
-                aria-label="WhatsApp number"
-                className="w-full px-3 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-brand-slate"
-              />
+              <PhoneInput value={guestPhone} onChange={setGuestPhone} size="sm" required />
               <input
                 type="email"
                 value={guestEmail}

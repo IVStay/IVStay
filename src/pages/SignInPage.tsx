@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { Eye, EyeOff, Mail, ArrowLeft } from 'lucide-react';
 import { useAuth, MIN_PASSWORD_LENGTH, type CustomerResult } from '../context/AuthContext';
-import { isValidPhone, PHONE_ERROR, PHONE_HINT } from '../lib/phone';
+import { isValidPhone, PHONE_ERROR, PHONE_REQUIRED } from '../lib/phone';
+import { PhoneInput } from '../components/ui/PhoneInput';
 import { Button } from '../components/ui/Button';
 
 type Mode = 'signin' | 'signup' | 'confirm' | 'forgot' | 'reset';
@@ -67,6 +68,7 @@ export const SignInPage: React.FC = () => {
       void run(() => auth.signInCustomer(email, password), () => navigate(next, { replace: true }));
     } else if (mode === 'signup') {
       if (fullName.trim().length < 2) return setError('Please enter your full name.');
+      if (!phone) return setError(PHONE_REQUIRED);
       if (!isValidPhone(phone)) return setError(PHONE_ERROR);
       if (password.length < MIN_PASSWORD_LENGTH) {
         return setError(`Your password needs at least ${MIN_PASSWORD_LENGTH} characters.`);
@@ -253,19 +255,9 @@ export const SignInPage: React.FC = () => {
               </div>
               <div>
                 <label htmlFor="phone" className={label}>
-                  WhatsApp number
+                  Phone number
                 </label>
-                <input
-                  id="phone"
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  autoComplete="tel"
-                  placeholder="98765 43210"
-                  required
-                  className={field}
-                />
-                <p className="text-[11px] text-slate-400 mt-1">{PHONE_HINT} We confirm bookings here.</p>
+                <PhoneInput id="phone" value={phone} onChange={setPhone} required />
               </div>
             </>
           )}
@@ -318,8 +310,8 @@ export const SignInPage: React.FC = () => {
           )}
           {mode === 'signup' && (
             <p>
-              By creating an account you agree that IvStay may contact you about your bookings on WhatsApp,
-              phone and email.
+              By creating an account you agree that IvStay may contact you about your bookings by phone,
+              WhatsApp and email.
             </p>
           )}
           <p>

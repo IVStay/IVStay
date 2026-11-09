@@ -2,7 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { User, UserRole } from '../types';
-import { isValidPhone, normalizePhone, PHONE_ERROR } from '../lib/phone';
+import { isValidPhone, normalizePhone, PHONE_ERROR, PHONE_REQUIRED } from '../lib/phone';
 
 /**
  * How admin sign-in works on this build:
@@ -78,7 +78,7 @@ function customerError(error: { message: string; code?: string; name?: string })
   return { ok: false, message: text };
 }
 
-export { isValidPhone, normalizePhone, PHONE_HINT, PHONE_ERROR } from '../lib/phone';
+export { isValidPhone, normalizePhone, PHONE_ERROR } from '../lib/phone';
 
 interface AuthContextType {
   mode: AuthMode;
@@ -453,7 +453,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const { data } = await supabase.auth.getSession();
       if (!data.session) return { ok: false, message: 'Please sign in again.' };
       const cleanPhone = normalizePhone(phone);
-      if (cleanPhone && !isValidPhone(cleanPhone)) return { ok: false, message: PHONE_ERROR };
+      if (!cleanPhone) return { ok: false, message: PHONE_REQUIRED };
+      if (!isValidPhone(cleanPhone)) return { ok: false, message: PHONE_ERROR };
       const { error } = await supabase
         .from('profiles')
         .update({ full_name: fullName.trim(), phone: cleanPhone || null })

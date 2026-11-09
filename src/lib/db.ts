@@ -440,3 +440,67 @@ export async function requestBooking(request: BookingRequest): Promise<{ referen
   const result = (data ?? {}) as { reference?: string; quote?: Json };
   return { reference: result.reference ?? '', quote: toQuote(result.quote ?? {}) };
 }
+
+/** Asks the notify-booking Edge Function to email the team (and the guest). Never throws. */
+export async function notifyBooking(reference: string): Promise<void> {
+  try {
+    const { error } = await db().functions.invoke('notify-booking', { body: { reference } });
+    if (error) console.warn('Booking alert email was not sent:', error.message);
+  } catch (error) {
+    console.warn('Booking alert email was not sent:', error);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Customer accounts
+// ---------------------------------------------------------------------------
+
+export interface MyBooking {
+  reference: string;
+  property_id: string;
+  property_title: string;
+  property_slug: string;
+  property_city: string;
+  check_in: string;
+  check_out: string;
+  nights: number;
+  adults: number;
+  children: number;
+  total: number;
+  status: string;
+  created_at: string;
+}
+
+/** The signed-in customer's booking requests and stays. */
+export async function fetchMyBookings(): Promise<MyBooking[]> {
+  const { data, error } = await db().rpc('my_bookings');
+  if (error) throw error;
+  return (data ?? []).map((row) => ({ ...row, total: toRupees(row.total_paise) }));
+}
+
+export interface Customer {
+  id: string;
+  full_name: string;
+  email: string | null;
+  phone: string | null;
+  phone_verified_at: string | null;
+  provider: string;
+  created_at: string;
+  last_sign_in_at: string | null;
+  booking_count: number;
+  last_request_at: string | null;
+}
+
+/** Every customer account (admins only). */
+export async function fetchCustomers(): Promise<Customer[]> {
+  const { data, error } = await db().rpc('admin_list_customers');
+  if (error) throw error;
+  return (data ?? []).map((row) => ({ ...row, booking_count: Number(row.booking_count) }));
+}
+
+/** Marks a customer's phone number as confirmed by the team, or clears it (admins only). */
+export async function setPhoneVerified(userId: string, verified: boolean): Promise<string | null> {
+  const { data, error } = await db().rpc('admin_set_phone_verified', { p_user_id: userId, p_verified: verified });
+  if (error) throw error;
+  return (data as string | null) ?? null;
+}

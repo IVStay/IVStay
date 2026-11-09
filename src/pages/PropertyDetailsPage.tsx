@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { Link, useLocation, useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import { isValidPhone, PHONE_ERROR } from '../lib/phone';
 import { useProperties } from '../context/PropertyContext';
 import { useBookings } from '../context/BookingContext';
 import { useToast } from '../context/ToastContext';
@@ -40,6 +42,8 @@ export const PropertyDetailsPage: React.FC = () => {
   const { getPropertyById, isWishlisted, toggleWishlist, loading } = useProperties();
   const { requestBooking } = useBookings();
   const { showSuccess, showInfo, showError } = useToast();
+  const { user } = useAuth();
+  const location = useLocation();
 
   const property = getPropertyById(id || '');
 
@@ -63,6 +67,15 @@ export const PropertyDetailsPage: React.FC = () => {
   const [isGuestPickerOpen, setIsGuestPickerOpen] = useState(false);
   const [guestName, setGuestName] = useState('');
   const [guestPhone, setGuestPhone] = useState('');
+  const [guestEmail, setGuestEmail] = useState('');
+
+  // Signed-in customers: fill in what we already know (they can still change it)
+  useEffect(() => {
+    if (!user) return;
+    setGuestName((current) => current || user.full_name);
+    setGuestPhone((current) => current || user.phone || '');
+    setGuestEmail((current) => current || user.email);
+  }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const [formError, setFormError] = useState<string | null>(null);
   const [reserving, setReserving] = useState(false);
   const { quote, isEstimate, unavailable } = useStayQuote(property, checkIn, checkOut, adults, children);
@@ -116,8 +129,12 @@ export const PropertyDetailsPage: React.FC = () => {
 
   const handleReserveClick = async () => {
     setFormError(null);
-    if (guestName.trim().length < 2 || guestPhone.replace(/\D/g, '').length < 8) {
-      setFormError('Add your name and WhatsApp number so we can confirm your stay.');
+    if (guestName.trim().length < 2) {
+      setFormError('Add your name so we know who is booking.');
+      return;
+    }
+    if (!isValidPhone(guestPhone)) {
+      setFormError(guestPhone.trim() ? PHONE_ERROR : 'Add your WhatsApp number so we can confirm your stay.');
       return;
     }
     // Open the tab now, while the click still counts as the user's action (popup blockers),
@@ -134,12 +151,17 @@ export const PropertyDetailsPage: React.FC = () => {
           checkOut,
           guestName: guestName.trim(),
           guestPhone: guestPhone.trim(),
+          guestEmail: guestEmail.trim() || undefined,
           adults,
           children,
         },
         property
       ));
-      showSuccess('Request sent', `Reference ${reference}. We'll confirm on WhatsApp.`);
+      showSuccess(
+        'Request sent',
+        `Reference ${reference}. We'll confirm on WhatsApp${guestEmail.trim() ? ' and email you a copy' : ''}.` +
+          (user ? ' It is also in My account.' : '')
+      );
     } catch (error) {
       const code = (error as { code?: string }).code;
       const message = error instanceof Error ? error.message : String(error);
@@ -533,6 +555,17 @@ export const PropertyDetailsPage: React.FC = () => {
 
             {/* Contact details for the request */}
             <div className="space-y-2">
+              {!user && (
+                <p className="text-[11px] text-slate-500">
+                  <Link
+                    to={`/signin?next=${encodeURIComponent(location.pathname + location.search)}`}
+                    className="font-semibold text-brand-slate underline underline-offset-2"
+                  >
+                    Sign in
+                  </Link>{' '}
+                  to fill these in and track your request, or just continue below.
+                </p>
+              )}
               <input
                 type="text"
                 value={guestName}
@@ -546,9 +579,18 @@ export const PropertyDetailsPage: React.FC = () => {
                 type="tel"
                 value={guestPhone}
                 onChange={(e) => setGuestPhone(e.target.value)}
-                placeholder="WhatsApp number, e.g. +91 98765 43210"
+                placeholder="WhatsApp number, e.g. 98765 43210"
                 autoComplete="tel"
                 aria-label="WhatsApp number"
+                className="w-full px-3 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-brand-slate"
+              />
+              <input
+                type="email"
+                value={guestEmail}
+                onChange={(e) => setGuestEmail(e.target.value)}
+                placeholder="Email (optional, for a confirmation)"
+                autoComplete="email"
+                aria-label="Email"
                 className="w-full px-3 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-brand-slate"
               />
               {formError && (

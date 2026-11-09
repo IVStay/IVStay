@@ -4,7 +4,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(46);
+select plan(63);
 
 -- ---------------------------------------------------------------------------
 -- Fixtures (inserted as the database owner, so access rules don't apply here)
@@ -72,6 +72,22 @@ select results_eq(
   'New accounts get a profile as guest, whatever their sign-up data says'
 );
 
+insert into auth.users (id, email, aud, role, raw_user_meta_data) values
+  ('aaaaaaaa-0000-0000-0000-000000000004', 'asha@ivstay.test', 'authenticated', 'authenticated',
+   '{"full_name": "Asha Rao", "phone": "+91 99999-11111"}'),
+  ('aaaaaaaa-0000-0000-0000-000000000005', 'nophone@ivstay.test', 'authenticated', 'authenticated',
+   '{"name": "Google Person", "phone": "call me"}');
+select results_eq(
+  $$ select full_name, phone, email from public.profiles where id = 'aaaaaaaa-0000-0000-0000-000000000004' $$,
+  $$ values ('Asha Rao', '+919999911111', 'asha@ivstay.test') $$,
+  'Sign-up keeps the customer''s name, a tidied phone number and their email'
+);
+select results_eq(
+  $$ select full_name, phone from public.profiles where id = 'aaaaaaaa-0000-0000-0000-000000000005' $$,
+  $$ values ('Google Person', null::text) $$,
+  'Google names are used, and an unusable phone number is left out'
+);
+
 -- ---------------------------------------------------------------------------
 -- Signed-out visitor
 -- ---------------------------------------------------------------------------
@@ -89,6 +105,26 @@ select throws_ok($$ select * from public.bookings $$, '42501', null, 'Visitors c
 select throws_ok($$ select * from public.owners $$, '42501', null, 'Visitors cannot read owners');
 select throws_ok($$ select * from public.payments $$, '42501', null, 'Visitors cannot read payments');
 select throws_ok($$ select * from public.enquiries $$, '42501', null, 'Visitors cannot read enquiries');
+select throws_ok($$ select * from public.admin_list_customers() $$, '42501', null, 'Visitors cannot list customers');
+
+-- Phone numbers (free checks)
+select results_eq(
+  $$ select public.normalize_phone(x) from unnest(array['98765 43210', '098765-43210', '919876543210', '+91 (98765) 43210']) x $$,
+  $$ values ('+919876543210'), ('+919876543210'), ('+919876543210'), ('+919876543210') $$,
+  'Indian mobiles are stored as +91 and 10 digits, however they are typed'
+);
+select results_eq(
+  $$ select public.is_valid_phone(public.normalize_phone(x)) from unnest(array['58765 43210', '12345', '+44 20 7946 0958', '+91 12345 67890']) x $$,
+  $$ values (false), (false), (true), (false) $$,
+  'Indian mobiles must start with 6-9; other countries need + and the country code'
+);
+select throws_ok(
+  $$ select public.request_booking('bbbbbbbb-0000-0000-0000-000000000001', '2027-01-01', '2027-01-04',
+       'Fake Number', '12345 67890', null, 2, 0, null) $$,
+  '22023', null,
+  'A booking request with an impossible mobile number is refused'
+);
+select throws_ok($$ select * from public.profiles $$, '42501', null, 'Visitors cannot read profiles');
 select throws_ok(
   $$ insert into public.properties (slug, title, category, property_type, city, price_per_night_paise, max_guests)
      values ('sneaky', 'Sneaky', 'hotels', 'hotel', 'X', 1, 1) $$,
@@ -191,6 +227,15 @@ select set_config('request.jwt.claims',
   '{"sub":"aaaaaaaa-0000-0000-0000-000000000001","role":"authenticated","aal":"aal2"}', true);
 
 select is(public.is_admin(), true, 'A verified admin is treated as admin');
+select is(
+  (select count(*)::int from public.admin_list_customers()),
+  4,
+  'A verified admin sees every customer account, and not admin accounts'
+);
+select ok(
+  public.admin_set_phone_verified('aaaaaaaa-0000-0000-0000-000000000004', true) is not null,
+  'An admin can mark a customer''s phone number as verified'
+);
 select results_eq(
   $$ select status, source, guest_phone, total_paise, special_requests
      from public.bookings where guest_name = 'Rhea Kapoor' and check_in = '2027-01-01' $$,
@@ -303,6 +348,50 @@ select throws_ok(
      values ('guest-made', 'Guest Made', 'hotels', 'hotel', 'X', 1, 1) $$,
   '42501', null,
   'A guest cannot add properties'
+);
+select throws_ok($$ select * from public.admin_list_customers() $$, '42501', null, 'A guest cannot list customers');
+select throws_ok(
+  $$ select public.admin_set_phone_verified('aaaaaaaa-0000-0000-0000-000000000002', true) $$,
+  '42501', null,
+  'A customer cannot mark their own number as verified'
+);
+select throws_ok(
+  $$ update public.profiles set phone = 'not a phone' where id = 'aaaaaaaa-0000-0000-0000-000000000002' $$,
+  '23514', null,
+  'A profile phone number must be a real number'
+);
+
+-- A signed-in customer's request is linked to their account and shows in "My bookings"
+select set_config('request.jwt.claims',
+  '{"sub":"aaaaaaaa-0000-0000-0000-000000000002","role":"authenticated","aal":"aal1","email":"guest@ivstay.test"}', true);
+select is(
+  (select count(*)::int from public.my_bookings()),
+  0,
+  'A new customer has no bookings yet'
+);
+select matches(
+  public.request_booking('bbbbbbbb-0000-0000-0000-000000000001', '2027-04-01', '2027-04-04',
+    'New Name', '+91 91234 56789', null, 2, 0, null) ->> 'reference',
+  '^IVS-[0-9]+$',
+  'A signed-in customer can send a booking request'
+);
+select results_eq(
+  $$ select property_title, check_in, status from public.my_bookings() $$,
+  $$ values ('Test Active Villa', '2027-04-01'::date, 'enquiry') $$,
+  'The request appears in the customer''s bookings'
+);
+select is(
+  (select phone from public.profiles where id = 'aaaaaaaa-0000-0000-0000-000000000002'),
+  '+919123456789',
+  'The first phone number a customer gives is saved to their profile'
+);
+
+-- Changing a verified number clears the verification
+reset role;
+update public.profiles set phone = '+91 99999 22222' where id = 'aaaaaaaa-0000-0000-0000-000000000004';
+select ok(
+  (select phone_verified_at is null and phone = '+919999922222' from public.profiles where id = 'aaaaaaaa-0000-0000-0000-000000000004'),
+  'A new phone number has to be verified again'
 );
 
 select * from finish();

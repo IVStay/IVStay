@@ -45,14 +45,14 @@ isOneToOne: false
                   ]
                 },"bookings": {
                   Row: {
-                    "admin_notes": string | null,"adults": number,"check_in": string,"check_out": string,"children": number,"cleaning_fee_paise": number,"created_at": string,"customer_payment_date": string | null,"customer_payment_status": string,"customer_rate_paise": number | null,"extra_guest_total_paise": number,"guest_email": string | null,"guest_id": string | null,"guest_name": string,"guest_phone": string | null,"id": string,"nightly_total_paise": number,"nights": number | null,"owner_payment_date": string | null,"owner_payment_status": string,"owner_rate_paise": number | null,"payment_status": string,"pets": number,"property_id": string,"reference": string,"service_fee_paise": number,"source": string,"special_requests": string | null,"status": string,"stay": unknown,"total_paise": number,"updated_at": string
+                    "admin_notes": string | null,"adults": number,"check_in": string,"check_out": string,"children": number,"cleaning_fee_paise": number,"created_at": string,"customer_payment_date": string | null,"customer_payment_status": string,"customer_rate_paise": number | null,"extra_guest_total_paise": number,"guest_email": string | null,"guest_id": string | null,"guest_name": string,"guest_phone": string | null,"id": string,"nightly_total_paise": number,"notified_at": string | null,"nights": number | null,"owner_payment_date": string | null,"owner_payment_status": string,"owner_rate_paise": number | null,"payment_status": string,"pets": number,"property_id": string,"reference": string,"service_fee_paise": number,"source": string,"special_requests": string | null,"status": string,"stay": unknown,"total_paise": number,"updated_at": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "admin_notes"?: string | null,"adults"?: number,"check_in": string,"check_out": string,"children"?: number,"cleaning_fee_paise"?: number,"created_at"?: string,"customer_payment_date"?: string | null,"customer_payment_status"?: string,"customer_rate_paise"?: number | null,"extra_guest_total_paise"?: number,"guest_email"?: string | null,"guest_id"?: string | null,"guest_name": string,"guest_phone"?: string | null,"id"?: string,"nightly_total_paise"?: number,"nights"?: never,"owner_payment_date"?: string | null,"owner_payment_status"?: string,"owner_rate_paise"?: number | null,"payment_status"?: string,"pets"?: number,"property_id": string,"reference"?: string,"service_fee_paise"?: number,"source"?: string,"special_requests"?: string | null,"status"?: string,"stay"?: never,"total_paise"?: number,"updated_at"?: string
+                    "admin_notes"?: string | null,"adults"?: number,"check_in": string,"check_out": string,"children"?: number,"cleaning_fee_paise"?: number,"created_at"?: string,"customer_payment_date"?: string | null,"customer_payment_status"?: string,"customer_rate_paise"?: number | null,"extra_guest_total_paise"?: number,"guest_email"?: string | null,"guest_id"?: string | null,"guest_name": string,"guest_phone"?: string | null,"id"?: string,"nightly_total_paise"?: number,"notified_at"?: string | null,"nights"?: never,"owner_payment_date"?: string | null,"owner_payment_status"?: string,"owner_rate_paise"?: number | null,"payment_status"?: string,"pets"?: number,"property_id": string,"reference"?: string,"service_fee_paise"?: number,"source"?: string,"special_requests"?: string | null,"status"?: string,"stay"?: never,"total_paise"?: number,"updated_at"?: string
                   }
                   Update: {
-                    "admin_notes"?: string | null,"adults"?: number,"check_in"?: string,"check_out"?: string,"children"?: number,"cleaning_fee_paise"?: number,"created_at"?: string,"customer_payment_date"?: string | null,"customer_payment_status"?: string,"customer_rate_paise"?: number | null,"extra_guest_total_paise"?: number,"guest_email"?: string | null,"guest_id"?: string | null,"guest_name"?: string,"guest_phone"?: string | null,"id"?: string,"nightly_total_paise"?: number,"nights"?: never,"owner_payment_date"?: string | null,"owner_payment_status"?: string,"owner_rate_paise"?: number | null,"payment_status"?: string,"pets"?: number,"property_id"?: string,"reference"?: string,"service_fee_paise"?: number,"source"?: string,"special_requests"?: string | null,"status"?: string,"stay"?: never,"total_paise"?: number,"updated_at"?: string
+                    "admin_notes"?: string | null,"adults"?: number,"check_in"?: string,"check_out"?: string,"children"?: number,"cleaning_fee_paise"?: number,"created_at"?: string,"customer_payment_date"?: string | null,"customer_payment_status"?: string,"customer_rate_paise"?: number | null,"extra_guest_total_paise"?: number,"guest_email"?: string | null,"guest_id"?: string | null,"guest_name"?: string,"guest_phone"?: string | null,"id"?: string,"nightly_total_paise"?: number,"notified_at"?: string | null,"nights"?: never,"owner_payment_date"?: string | null,"owner_payment_status"?: string,"owner_rate_paise"?: number | null,"payment_status"?: string,"pets"?: number,"property_id"?: string,"reference"?: string,"service_fee_paise"?: number,"source"?: string,"special_requests"?: string | null,"status"?: string,"stay"?: never,"total_paise"?: number,"updated_at"?: string
                   }
                   Relationships: [
                     {
@@ -119,14 +119,14 @@ isOneToOne: false
                   ]
                 },"profiles": {
                   Row: {
-                    "created_at": string,"full_name": string,"id": string,"phone": string | null,"role": string,"updated_at": string
+                    "created_at": string,"email": string | null,"full_name": string,"id": string,"phone": string | null,"phone_verified_at": string | null,"role": string,"updated_at": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "created_at"?: string,"full_name"?: string,"id": string,"phone"?: string | null,"role"?: string,"updated_at"?: string
+                    "created_at"?: string,"email"?: string | null,"full_name"?: string,"id": string,"phone"?: string | null,"phone_verified_at"?: string | null,"role"?: string,"updated_at"?: string
                   }
                   Update: {
-                    "created_at"?: string,"full_name"?: string,"id"?: string,"phone"?: string | null,"role"?: string,"updated_at"?: string
+                    "created_at"?: string,"email"?: string | null,"full_name"?: string,"id"?: string,"phone"?: string | null,"phone_verified_at"?: string | null,"role"?: string,"updated_at"?: string
                   }
                   Relationships: [
                     
@@ -203,6 +203,25 @@ isOneToOne: false
             [_ in never]: never
           }
           Functions: {
+            "admin_list_customers":
+{ Args: Record<PropertyKey, never>; Returns: {
+              "booking_count": number,"created_at": string,"email": string | null,"full_name": string,"id": string,"last_request_at": string | null,"last_sign_in_at": string | null,"phone": string | null,"phone_verified_at": string | null,"provider": string
+            }[]
+                           },
+            "admin_set_phone_verified":
+{ Args: { "p_user_id": string,"p_verified": boolean }; Returns: string | null
+                           },
+            "is_valid_phone":
+{ Args: { "p_phone": string }; Returns: boolean
+                           },
+            "normalize_phone":
+{ Args: { "p_phone": string }; Returns: string
+                           },
+            "my_bookings":
+{ Args: Record<PropertyKey, never>; Returns: {
+              "adults": number,"check_in": string,"check_out": string,"children": number,"created_at": string,"nights": number,"property_city": string,"property_id": string,"property_slug": string,"property_title": string,"reference": string,"status": string,"total_paise": number
+            }[]
+                           },
             "get_unavailable_ranges":
 { Args: { "p_from"?: string,"p_property_id": string,"p_to"?: string }; Returns: {
               "ends_on": string,"starts_on": string

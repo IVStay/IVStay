@@ -5,7 +5,8 @@ import { useProperties } from '../../context/PropertyContext';
 import { useToast } from '../../context/ToastContext';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
-import { CalendarCheck, Edit2, Trash2, Plus, X, Save, Phone, Mail } from 'lucide-react';
+import { CalendarCheck, Edit2, Trash2, Plus, X, Save, Phone, Mail, MessageCircle } from 'lucide-react';
+import { guestWhatsappLink } from '../../config/contact';
 import { Booking, BookingInput, BookingSource, BookingStatus, LedgerStatus, PaymentStatus } from '../../types';
 import { formatINR } from '../../utils/currency';
 import {
@@ -228,6 +229,22 @@ export const AdminDashboardPage: React.FC = () => {
               {booking.guest_phone && (
                 <a href={`tel:${booking.guest_phone}`} className="flex items-center gap-1 text-slate-500 hover:text-white">
                   <Phone className="w-3 h-3" /> {booking.guest_phone}
+                </a>
+              )}
+              {guestWhatsappLink(booking.guest_phone) && (
+                <a
+                  href={
+                    guestWhatsappLink(
+                      booking.guest_phone,
+                      `Hi ${booking.guest_name.split(' ')[0]}, this is IvStay about your booking request ${booking.reference}` +
+                        `${booking.property_title ? ` for ${booking.property_title}` : ''} (${booking.check_in} to ${booking.check_out}). `
+                    )!
+                  }
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-full bg-emerald-600/20 text-emerald-300 hover:bg-emerald-600/40 text-[10px] font-semibold"
+                >
+                  <MessageCircle className="w-3 h-3" /> WhatsApp
                 </a>
               )}
               {booking.guest_email && (

@@ -2,6 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { User, UserRole } from '../types';
+import { isValidPhone, normalizePhone, PHONE_ERROR } from '../lib/phone';
 
 /**
  * How admin sign-in works on this build:
@@ -29,8 +30,56 @@ export interface AuthenticatorSetup {
 
 interface Profile {
   full_name: string;
+  phone: string | null;
+  phone_verified: boolean;
   role: UserRole;
 }
+
+/** Result of a customer sign-in / sign-up step */
+export type CustomerResult =
+  | { ok: true; next?: 'confirm-email' }
+  | { ok: false; message: string };
+
+export interface CustomerSignUp {
+  fullName: string;
+  phone: string;
+  email: string;
+  password: string;
+}
+
+export const MIN_PASSWORD_LENGTH = 12;
+
+/** Turns Supabase auth errors into sentences a guest can act on. */
+function customerError(error: { message: string; code?: string; name?: string }): CustomerResult {
+  const text = error.message || '';
+  if (error.name === 'AuthRetryableFetchError' || /failed to fetch|network/i.test(text)) {
+    return { ok: false, message: "Can't reach IvStay right now. Check your internet connection and try again." };
+  }
+  if (error.code === 'invalid_credentials' || /invalid login credentials/i.test(text)) {
+    return { ok: false, message: 'Wrong email or password.' };
+  }
+  if (error.code === 'email_not_confirmed' || /email not confirmed/i.test(text)) {
+    return { ok: false, message: 'Please confirm your email first: enter the code we sent you.' };
+  }
+  if (error.code === 'user_already_exists' || /already registered/i.test(text)) {
+    return { ok: false, message: 'An account with this email already exists. Sign in instead.' };
+  }
+  if (error.code === 'otp_expired' || /token has expired|invalid/i.test(text)) {
+    return { ok: false, message: "That code didn't work or has expired. Check the latest email, or send a new code." };
+  }
+  if (error.code === 'over_email_send_rate_limit' || /rate limit/i.test(text)) {
+    return { ok: false, message: 'Too many emails were sent just now. Please wait a few minutes and try again.' };
+  }
+  if (error.code === 'weak_password' || /password/i.test(text)) {
+    return { ok: false, message: `Choose a stronger password (at least ${MIN_PASSWORD_LENGTH} characters).` };
+  }
+  if (error.code === 'signup_disabled' || /signups not allowed/i.test(text)) {
+    return { ok: false, message: 'New accounts are switched off at the moment. Please message us on WhatsApp.' };
+  }
+  return { ok: false, message: text };
+}
+
+export { isValidPhone, normalizePhone, PHONE_HINT, PHONE_ERROR } from '../lib/phone';
 
 interface AuthContextType {
   mode: AuthMode;
@@ -48,6 +97,15 @@ interface AuthContextType {
   finishAuthenticatorSetup: (factorId: string, code: string) => Promise<AdminStep>;
   devSignIn: () => void;
   logout: () => Promise<void>;
+  // Customers
+  signUpCustomer: (input: CustomerSignUp) => Promise<CustomerResult>;
+  confirmEmail: (email: string, code: string) => Promise<CustomerResult>;
+  resendConfirmation: (email: string) => Promise<CustomerResult>;
+  signInCustomer: (email: string, password: string) => Promise<CustomerResult>;
+  signInWithGoogle: (returnTo?: string) => Promise<CustomerResult>;
+  sendPasswordReset: (email: string) => Promise<CustomerResult>;
+  resetPassword: (email: string, code: string, newPassword: string) => Promise<CustomerResult>;
+  updateProfile: (changes: { fullName: string; phone: string }) => Promise<CustomerResult>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -105,12 +163,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       const [{ data: row }, { data: level }] = await Promise.all([
-        supabase.from('profiles').select('full_name, role').eq('id', current.user.id).maybeSingle(),
+        supabase.from('profiles').select('full_name, phone, phone_verified_at, role').eq('id', current.user.id).maybeSingle(),
         supabase.auth.mfa.getAuthenticatorAssuranceLevel(),
       ]);
       if (run !== syncRun.current) return;
       setSession(current);
-      setProfile(row ? { full_name: row.full_name ?? '', role: row.role === 'admin' ? 'admin' : 'guest' } : null);
+      setProfile(
+        row
+          ? {
+              full_name: row.full_name ?? '',
+              phone: row.phone ?? null,
+              phone_verified: !!row.phone_verified_at,
+              role: row.role === 'admin' ? 'admin' : 'guest',
+            }
+          : null
+      );
       setAal(level?.currentLevel ?? null);
     } finally {
       if (run === syncRun.current) setLoading(false);
@@ -272,6 +339,134 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await syncFromSession(null);
   }, [syncFromSession]);
 
+  // ---------------------------------------------------------------------------
+  // Customers (role 'guest'). Email confirmation and password reset use 6-digit codes typed on
+  // the site, so they work even when the email is opened on another device.
+  // ---------------------------------------------------------------------------
+
+  const notReady: CustomerResult = { ok: false, message: 'Accounts are not available on this site yet.' };
+
+  const signUpCustomer = useCallback(
+    async ({ fullName, phone, email, password }: CustomerSignUp): Promise<CustomerResult> => {
+      if (!supabase) return notReady;
+      const { data, error } = await supabase.auth.signUp({
+        email: email.trim().toLowerCase(),
+        password,
+        options: { data: { full_name: fullName.trim(), phone: normalizePhone(phone) } },
+      });
+      if (error) return customerError(error);
+      // Supabase hides whether an email is taken: an existing account comes back with no identities.
+      if (data.user && (data.user.identities?.length ?? 0) === 0) {
+        return { ok: false, message: 'An account with this email already exists. Sign in instead.' };
+      }
+      if (data.session) {
+        await syncFromSession(data.session);
+        return { ok: true };
+      }
+      return { ok: true, next: 'confirm-email' };
+    },
+    [syncFromSession]
+  );
+
+  const confirmEmail = useCallback(
+    async (email: string, code: string): Promise<CustomerResult> => {
+      if (!supabase) return notReady;
+      const { data, error } = await supabase.auth.verifyOtp({
+        email: email.trim().toLowerCase(),
+        token: code.replace(/\s/g, ''),
+        type: 'signup',
+      });
+      if (error) return customerError(error);
+      await syncFromSession(data.session);
+      return { ok: true };
+    },
+    [syncFromSession]
+  );
+
+  const resendConfirmation = useCallback(async (email: string): Promise<CustomerResult> => {
+    if (!supabase) return notReady;
+    const { error } = await supabase.auth.resend({ type: 'signup', email: email.trim().toLowerCase() });
+    return error ? customerError(error) : { ok: true };
+  }, []);
+
+  const signInCustomer = useCallback(
+    async (email: string, password: string): Promise<CustomerResult> => {
+      if (!supabase) return notReady;
+      const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password });
+      if (error) return customerError(error);
+      await syncFromSession(data.session);
+      return { ok: true };
+    },
+    [syncFromSession]
+  );
+
+  const signInWithGoogle = useCallback(async (returnTo = '/account'): Promise<CustomerResult> => {
+    if (!supabase) return notReady;
+    // Check first: with Google switched off, Supabase would show a bare error page instead.
+    try {
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/auth/v1/settings`, {
+        headers: { apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY || '' },
+      });
+      const settings = (await response.json()) as { external?: { google?: boolean } };
+      if (!settings.external?.google) {
+        return { ok: false, message: 'Google sign-in is not switched on yet. Please use your email for now.' };
+      }
+    } catch {
+      return customerError({ message: 'Failed to fetch', name: 'AuthRetryableFetchError' });
+    }
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: `${window.location.origin}${returnTo}` },
+    });
+    if (error) {
+      return /provider is not enabled|unsupported provider/i.test(error.message)
+        ? { ok: false, message: 'Google sign-in is not switched on yet. Use your email for now.' }
+        : customerError(error);
+    }
+    return { ok: true }; // the browser is now on its way to Google
+  }, []);
+
+  const sendPasswordReset = useCallback(async (email: string): Promise<CustomerResult> => {
+    if (!supabase) return notReady;
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase());
+    return error ? customerError(error) : { ok: true };
+  }, []);
+
+  const resetPassword = useCallback(
+    async (email: string, code: string, newPassword: string): Promise<CustomerResult> => {
+      if (!supabase) return notReady;
+      const { error } = await supabase.auth.verifyOtp({
+        email: email.trim().toLowerCase(),
+        token: code.replace(/\s/g, ''),
+        type: 'recovery',
+      });
+      if (error) return customerError(error);
+      const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
+      if (updateError) return customerError(updateError);
+      await syncFromSession();
+      return { ok: true };
+    },
+    [syncFromSession]
+  );
+
+  const updateProfile = useCallback(
+    async ({ fullName, phone }: { fullName: string; phone: string }): Promise<CustomerResult> => {
+      if (!supabase) return notReady;
+      const { data } = await supabase.auth.getSession();
+      if (!data.session) return { ok: false, message: 'Please sign in again.' };
+      const cleanPhone = normalizePhone(phone);
+      if (cleanPhone && !isValidPhone(cleanPhone)) return { ok: false, message: PHONE_ERROR };
+      const { error } = await supabase
+        .from('profiles')
+        .update({ full_name: fullName.trim(), phone: cleanPhone || null })
+        .eq('id', data.session.user.id);
+      if (error) return { ok: false, message: error.message };
+      await syncFromSession();
+      return { ok: true };
+    },
+    [syncFromSession]
+  );
+
   const value = useMemo<AuthContextType>(() => {
     let user: User | null = null;
     if (mode === 'dev-local') {
@@ -280,8 +475,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       user = {
         id: session.user.id,
         email: session.user.email ?? '',
-        full_name: profile?.full_name ?? '',
+        full_name: profile?.full_name || (session.user.user_metadata?.full_name as string | undefined) || '',
+        phone: profile?.phone ?? undefined,
+        phone_verified: profile?.phone_verified ?? false,
         role: profile?.role ?? 'guest',
+        avatar_url: (session.user.user_metadata?.avatar_url as string | undefined) || undefined,
         created_at: session.user.created_at,
       };
     }
@@ -300,8 +498,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       finishAuthenticatorSetup,
       devSignIn,
       logout,
+      signUpCustomer,
+      confirmEmail,
+      resendConfirmation,
+      signInCustomer,
+      signInWithGoogle,
+      sendPasswordReset,
+      resetPassword,
+      updateProfile,
     };
   }, [
+    signUpCustomer,
+    confirmEmail,
+    resendConfirmation,
+    signInCustomer,
+    signInWithGoogle,
+    sendPasswordReset,
+    resetPassword,
+    updateProfile,
     session,
     profile,
     aal,

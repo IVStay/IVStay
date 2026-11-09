@@ -20,6 +20,8 @@ import ContactPagePartner from '@/app/contact/page';
 import { ListingsPage } from './pages/ListingsPage';
 import { PropertyDetailsPage } from './pages/PropertyDetailsPage';
 import { ScrollToTop } from './components/ScrollToTop';
+import { SignInPage } from './pages/SignInPage';
+import { AccountPage } from './pages/AccountPage';
 
 // Admin Protected Layout & Pages
 import { AdminLayout } from './components/admin/AdminLayout';
@@ -28,6 +30,7 @@ import { AdminDashboardPage } from './pages/admin/AdminDashboardPage';
 import { AdminPropertiesPage } from './pages/admin/AdminPropertiesPage';
 import { AdminPropertyWizardPage } from './pages/admin/AdminPropertyWizardPage';
 import { AdminBookingsPage } from './pages/admin/AdminBookingsPage';
+import { AdminCustomersPage } from './pages/admin/AdminCustomersPage';
 
 // Old /villas/:id and /hotels/:id links go to the single canonical stay page.
 const RedirectToStay: React.FC = () => {
@@ -59,12 +62,18 @@ const AppContent: React.FC = () => {
           <Route path="/villas/:id" element={<RedirectToStay />} />
           <Route path="/hotels/:id" element={<RedirectToStay />} />
 
+          {/* Customer accounts */}
+          <Route path="/signin" element={<SignInPage />} />
+          <Route path="/account" element={<AccountPage />} />
+
 
           {/* Admin Authentication Screen */}
           <Route path="/admin/login" element={<AdminLoginPage />} />
 
           {/* Protected Admin Console Routes */}
           <Route path="/admin" element={<AdminLayout />}>
+            <Route index element={<Navigate to="/admin/dashboard" replace />} />
+            <Route path="customers" element={<AdminCustomersPage />} />
             <Route path="dashboard" element={<AdminDashboardPage />} />
             <Route path="properties" element={<AdminPropertiesPage />} />
             <Route path="properties/new" element={<AdminPropertyWizardPage />} />

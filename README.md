@@ -123,6 +123,27 @@ Code map: `src/lib/db.ts` (all database calls; converts rupees ↔ paise), `src/
 (the same price rules for instant estimates and the no-Supabase mode), and the two data contexts
 in `src/context/`.
 
+## Customer accounts and booking alerts
+
+- Customers sign up at `/signin` with email + password (confirmed with a 6-digit emailed code) or
+  "Continue with Google". `/account` shows their details and every request they've sent. Signing in
+  is optional for booking; signed-in customers get the form filled in.
+- Every website booking request: opens WhatsApp for the guest with the details ready to send, emails
+  the team (one-tap WhatsApp / call / email buttons) and the guest (if they gave an email), and
+  lands in the admin **Bookings Ledger** with a WhatsApp button. Admins see all accounts under
+  **Customers** (search, CSV export).
+- Phone numbers (free checks, no SMS): Indian mobiles must be 10 digits starting 6-9 and are stored
+  as `+91…`; other countries need `+` and the country code. Admins mark a number **Verified** on the
+  Customers page after reaching the customer on it; changing the number clears that.
+- The admin console isn't linked from the public site: go to `/admin`.
+- Emails go out from Gmail (`supabase/functions/notify-booking` for alerts; Supabase Auth SMTP for
+  sign-up and reset codes). One-time setup, which also applies migrations and deploys the function:
+  ```powershell
+  powershell -ExecutionPolicy Bypass -File scripts\setup-accounts.ps1
+  ```
+  It asks for the Gmail app password (from https://myaccount.google.com/apppasswords) and,
+  optionally, the Google OAuth client ID and secret. Customer sign-up stays off until email works.
+
 ## How the data is protected
 
 - Every table has row level security. Visitors can read **active** stays, their photos and

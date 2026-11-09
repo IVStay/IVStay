@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import styles from './Navigation.module.css';
 import { CONTACT_PHONE, whatsappLink } from '@src/config/contact';
+import { useAuth } from '@src/context/AuthContext';
 
 // SVG Icons
 const SearchIcon = () => (
@@ -50,12 +51,15 @@ const NAV_LINKS = [
   { href: '/contact', label: 'Contact' },
 ];
 
-const SIGN_IN_HREF = '/admin/login';
-const LIST_PROPERTY_HREF =whatsappLink("Hi IvStay, I'd like to list my property on IvStay.");
+const LIST_PROPERTY_HREF = whatsappLink("Hi IvStay, I'd like to list my property on IvStay.");
 
 export const Navigation = () => {
   const [menuOpen, setMenuOpen] = useState(false);
   const closeMenu = () => setMenuOpen(false);
+  const { user } = useAuth();
+  // Customers sign in here. The admin console isn't linked anywhere: type /admin to reach it.
+  const accountHref = user ? '/account' : '/signin';
+  const accountLabel = user ? user.full_name.split(' ')[0] || 'My account' : 'Sign In';
 
   return (
     <header className={styles.header}>
@@ -89,9 +93,8 @@ export const Navigation = () => {
           >
             List your property
           </a>
-          {/* Only IvStay team accounts exist for now; guests book without an account */}
-          <Link href={SIGN_IN_HREF} className={`${styles.outlineBtn} ${styles.hideOnMobile}`} onClick={closeMenu}>
-            <UserIcon /> Sign In
+          <Link href={accountHref} className={`${styles.outlineBtn} ${styles.hideOnMobile}`} onClick={closeMenu}>
+            <UserIcon /> {accountLabel}
           </Link>
           <a href={`tel:${CONTACT_PHONE}`} className={styles.blackBtn} aria-label="Call IvStay">
             <PhoneIcon /> <span className={styles.callLabel}>Call Now</span>
@@ -126,8 +129,8 @@ export const Navigation = () => {
           >
             List your property
           </a>
-          <Link href={SIGN_IN_HREF} className={styles.mobileLink} onClick={closeMenu}>
-            Sign In
+          <Link href={accountHref} className={styles.mobileLink} onClick={closeMenu}>
+            {user ? 'My account' : 'Sign In'}
           </Link>
         </nav>
       )}

@@ -280,6 +280,8 @@ export const BookingProvider: React.FC<{ children: React.ReactNode }> = ({ child
       if (dataSource === 'database') {
         try {
           const { reference } = await db.requestBooking(request);
+          // Email alerts (team + guest) run in the background; the request is already saved.
+          void db.notifyBooking(reference);
           return { reference };
         } catch (error) {
           throw db.friendlyError(error);

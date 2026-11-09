@@ -1,7 +1,7 @@
 import React from 'react';
 import { Navigate, Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { LayoutDashboard, Building2, CalendarDays, LogOut, Shield, ArrowLeft, Sparkles } from 'lucide-react';
+import { LayoutDashboard, Building2, CalendarDays, LogOut, Shield, ArrowLeft, Sparkles, Users } from 'lucide-react';
 
 export const AdminLayout: React.FC = () => {
   const { user, isAdmin, loading, logout } = useAuth();
@@ -24,6 +24,7 @@ export const AdminLayout: React.FC = () => {
     { label: 'Bookings Ledger', path: '/admin/dashboard', icon: LayoutDashboard },
     { label: 'Properties & CRUD', path: '/admin/properties', icon: Building2 },
     { label: 'Availability Calendar', path: '/admin/bookings', icon: CalendarDays },
+    { label: 'Customers', path: '/admin/customers', icon: Users },
   ];
 
   return (

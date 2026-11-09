@@ -16,6 +16,13 @@ const publishableKey =
 export const supabase: SupabaseClient<Database> | null =
   url && publishableKey
     ? createClient<Database>(url, publishableKey, {
-        auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false },
+        auth: {
+          persistSession: true,
+          autoRefreshToken: true,
+          // "Continue with Google" comes back to the site with a one-time code in the URL;
+          // the client swaps it for a session (PKCE flow).
+          detectSessionInUrl: true,
+          flowType: 'pkce',
+        },
       })
     : null;

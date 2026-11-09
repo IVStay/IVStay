@@ -1,9 +1,15 @@
-// Destination guides shown under Blogs. Add a guide by adding an entry; `city` links it to the
-// stays in that town (and supplies its cover photo from those stays).
+// Posts shown under Blogs. Add one by adding an entry. A post with `city` links to the stays in
+// that town and uses one of their photos as its cover; others borrow a photo from any live stay.
+
+export type GuideTag = 'Destination guide' | 'Trip planning' | 'Travel tips';
 
 export interface Guide {
   slug: string;
-  city: string;
+  tag: GuideTag;
+  city?: string;
+  /** Cover photo for posts that aren't about one town */
+  cover?: string;
+  readMinutes: number;
   title: string;
   summary: string;
   updated: string;
@@ -13,7 +19,9 @@ export interface Guide {
 export const GUIDES: Guide[] = [
   {
     slug: 'kasauli-weekend-guide',
+    tag: 'Destination guide',
     city: 'Kasauli',
+    readMinutes: 4,
     title: 'A slow weekend in Kasauli',
     summary:
       'Pine-scented walks, colonial lanes and big sunsets, a short drive from Chandigarh. What to see, when to go and how to get there.',
@@ -63,7 +71,9 @@ export const GUIDES: Guide[] = [
   },
   {
     slug: 'mussoorie-guide',
+    tag: 'Destination guide',
     city: 'Mussoorie',
+    readMinutes: 4,
     title: 'Mussoorie beyond the Mall Road',
     summary:
       "The Queen of the Hills, the quieter way: Landour's lanes, Himalayan views and where to go when the Mall gets busy.",
@@ -107,6 +117,169 @@ export const GUIDES: Guide[] = [
         paragraphs: [
           'Traffic into town can be slow on weekends and holidays, so arrive early. Many lanes are steep and walkable only, so comfortable shoes matter more than you think.',
         ],
+      },
+    ],
+  },
+  {
+    slug: 'villa-or-hotel',
+    cover: 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?q=80&w=1600&auto=format&fit=crop',
+    tag: 'Trip planning',
+    readMinutes: 3,
+    title: 'Villa or hotel? How to choose for your next trip',
+    summary:
+      'A whole house to yourselves or a room with service on call? A quick way to decide, based on who you are travelling with and what you want from the trip.',
+    updated: 'November 2026',
+    sections: [
+      {
+        heading: 'Choose a villa or BnB when…',
+        points: [
+          "You're a group of friends or two or more families who want to spend time together, not in separate rooms down a corridor.",
+          'You want a kitchen, a garden or a terrace, and the freedom to keep your own hours.',
+          'You are staying three nights or more. Per person, a villa often works out cheaper than several hotel rooms.',
+          'You are bringing young children and want space for them to play and nap.',
+        ],
+      },
+      {
+        heading: 'Choose a hotel or resort when…',
+        points: [
+          "It's a short trip for one or two people and you just want to arrive and relax.",
+          'You want daily housekeeping, a restaurant on site and someone at the front desk at any hour.',
+          'You are planning to be out exploring all day and only need a comfortable base.',
+        ],
+      },
+      {
+        heading: 'Questions worth asking before you book',
+        points: [
+          'Is there a caretaker or cook, and are meals included or charged separately?',
+          'How is the property heated in winter, and is there power backup?',
+          'How far is the parking from the door? In the hills, the last stretch is often on foot.',
+          'What are the check-in and check-out times, and is early check-in possible?',
+        ],
+        paragraphs: ['Not sure? Send us your dates and group size and we will suggest the right kind of stay.'],
+      },
+    ],
+  },
+  {
+    slug: 'group-getaway-checklist',
+    cover: 'https://images.unsplash.com/photo-1469474968028-56623f02e42e?q=80&w=1600&auto=format&fit=crop',
+    tag: 'Trip planning',
+    readMinutes: 4,
+    title: 'Planning a group getaway to the hills: a simple checklist',
+    summary:
+      'Birthdays, reunions, a long weekend with old friends. How to plan a group trip without the endless WhatsApp thread.',
+    updated: 'November 2026',
+    sections: [
+      {
+        heading: 'Four to six weeks before',
+        points: [
+          'Fix the dates first, then the place. Long weekends and holidays fill up fast.',
+          'Agree on a budget per person, including travel, the stay and food.',
+          'Count heads honestly, including children. Properties have a maximum guest count for good reasons.',
+          "Shortlist two or three stays that sleep your whole group, and send one booking request with everyone's needs.",
+        ],
+      },
+      {
+        heading: 'Two weeks before',
+        points: [
+          'Confirm who is driving and who is coming by train or bus, and share pick-up points.',
+          "Tell the property about food preferences, a cake or bonfire night, and anyone's special needs.",
+          "Collect everyone's share of the payment before the due date, not on the way up.",
+        ],
+      },
+      {
+        heading: 'The week of the trip',
+        points: [
+          'Check the weather and road conditions, especially in monsoon and winter.',
+          'Make sure each adult carries a government photo ID; properties are required to register guests.',
+          "Share the property location and the host's number with the whole group.",
+          'Leave early. Hill roads are slow, and arriving before dark makes the last stretch easier.',
+        ],
+      },
+      {
+        heading: 'House etiquette',
+        paragraphs: [
+          'Keep the music down after 10 pm, respect the neighbours and the house rules, and leave the place as you found it. Hosts remember good guests, and it makes the next booking easier for everyone.',
+        ],
+      },
+    ],
+  },
+  {
+    slug: 'packing-for-the-hills',
+    cover: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=1600&auto=format&fit=crop',
+    tag: 'Travel tips',
+    readMinutes: 3,
+    title: 'What to pack for the hills, season by season',
+    summary:
+      'Hill weather changes fast. A short packing list for summer, monsoon and winter trips to the mountains, so you stay warm, dry and comfortable.',
+    updated: 'November 2026',
+    sections: [
+      {
+        heading: 'Every trip',
+        points: [
+          'A warm layer for the evenings: even in May, nights in the hills can be cool.',
+          'Comfortable shoes with good grip. Many hill-town lanes are steep, and some are walk-only.',
+          'Sunscreen and sunglasses; the sun is stronger at altitude.',
+          'Basic medicines, including something for motion sickness on winding roads.',
+          'A power bank, and some cash for small shops and roadside stalls.',
+        ],
+      },
+      {
+        heading: 'Summer (March to June)',
+        points: ['Light cotton clothes for the day, a fleece or light jacket for the night.', 'A cap or hat for walks in the sun.'],
+      },
+      {
+        heading: 'Monsoon (July to September)',
+        points: [
+          'A proper rain jacket or poncho, and an umbrella.',
+          'Quick-dry clothes and a spare pair of shoes.',
+          'Waterproof covers or zip bags for phones and documents.',
+          'Extra time in your plans: landslides can close roads for a few hours.',
+        ],
+      },
+      {
+        heading: 'Winter (December to February)',
+        points: [
+          'Thermal innerwear, a heavy jacket, a cap, gloves and woollen socks.',
+          'Moisturiser and lip balm; the cold air is very dry.',
+          "If you're driving, check whether snow chains are needed and drive only in daylight.",
+          'Ask the property about room heating and hot water before you go.',
+        ],
+      },
+    ],
+  },
+  {
+    slug: 'weekend-getaways-from-delhi-chandigarh',
+    cover: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?q=80&w=1600&auto=format&fit=crop',
+    tag: 'Trip planning',
+    readMinutes: 3,
+    title: 'Hill weekends from Delhi and Chandigarh',
+    summary:
+      'Two days off and a car? Hill getaways that work for a weekend, and how to make the most of a short trip.',
+    updated: 'November 2026',
+    sections: [
+      {
+        heading: 'From Chandigarh',
+        points: [
+          'Kasauli: about two hours. Quiet cantonment lanes, forest walks and big sunsets. Perfect for a Saturday–Sunday break.',
+          'The Shimla side (Waknaghat, Kandaghat): a little further along the same highway, with valley views and easy access to Shimla.',
+        ],
+      },
+      {
+        heading: 'From Delhi',
+        points: [
+          'Mussoorie: around six to seven hours by road, or the morning train to Dehradun and an hour and a half up the hill. Best with a Friday off.',
+          'Kasauli: around six hours by road via Chandigarh, or the train to Kalka and a short drive up.',
+        ],
+      },
+      {
+        heading: 'Making a short trip count',
+        points: [
+          'Leave very early on day one, or the night before, to beat the traffic out of the city.',
+          'Pick one or two things to do, not ten. The best part of the hills is slowing down.',
+          'Stay somewhere with a view and a good breakfast; you will spend more time there than you think.',
+          'Head back after an early lunch on the last day to avoid the Sunday-evening rush.',
+        ],
+        paragraphs: ['Read our Kasauli and Mussoorie guides for more, or ask us to suggest a stay for your dates.'],
       },
     ],
   },

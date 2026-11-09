@@ -63,6 +63,25 @@ export const AboutPage: React.FC = () => {
         </div>
       </section>
 
+      <section className="max-w-3xl mx-auto px-4 sm:px-6 pt-16 space-y-4 text-[15px] leading-relaxed text-slate-700">
+        <p className="text-xs font-semibold uppercase tracking-widest text-brand-gold">Our story</p>
+        <h2 className="font-serif text-3xl font-bold text-brand-slate">Booking a getaway should feel like a getaway</h2>
+        <p>
+          IvStay exists for one simple reason: finding a good place to stay in the hills should be as relaxing as the
+          trip itself. Too often it isn't. Photos that flatter, charges that appear at check-in, and nobody to call
+          when the hot water doesn't work.
+        </p>
+        <p>
+          So we keep things small and personal. We list a handful of villas, BnBs and boutique hotels that we know and
+          trust, show every rupee of the price before you ask, and answer the phone when you call. When you send a
+          request, a person checks it with the host and comes back to you, not an automated system.
+        </p>
+        <p>
+          We are growing one good stay at a time. If you own a place that guests would love, we'd be glad to hear
+          from you.
+        </p>
+      </section>
+
       <section className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16 space-y-10">
         <div className="text-center">
           <h2 className="font-serif text-3xl font-bold text-brand-slate">How booking works</h2>

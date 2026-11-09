@@ -22,6 +22,10 @@ import { PropertyDetailsPage } from './pages/PropertyDetailsPage';
 import { ScrollToTop } from './components/ScrollToTop';
 import { SignInPage } from './pages/SignInPage';
 import { AccountPage } from './pages/AccountPage';
+import { PrivacyPage } from './pages/legal/PrivacyPage';
+import { TermsPage } from './pages/legal/TermsPage';
+import { CancellationPage } from './pages/legal/CancellationPage';
+import { SiteFooter } from './components/public/SiteFooter';
 
 // Admin Protected Layout & Pages
 import { AdminLayout } from './components/admin/AdminLayout';
@@ -66,6 +70,11 @@ const AppContent: React.FC = () => {
           <Route path="/signin" element={<SignInPage />} />
           <Route path="/account" element={<AccountPage />} />
 
+          {/* Policies */}
+          <Route path="/privacy" element={<PrivacyPage />} />
+          <Route path="/terms" element={<TermsPage />} />
+          <Route path="/cancellation-policy" element={<CancellationPage />} />
+
 
           {/* Admin Authentication Screen */}
           <Route path="/admin/login" element={<AdminLoginPage />} />
@@ -85,6 +94,7 @@ const AppContent: React.FC = () => {
           <Route path="*" element={<HomePagePartner />} />
         </Routes>
       </main>
+      {!isAdminRoute && <SiteFooter />}
     </div>
   );
 };

@@ -3,6 +3,7 @@ import { Link, useLocation, useParams, useNavigate, useSearchParams } from 'reac
 import { useAuth } from '../context/AuthContext';
 import { isValidPhone, PHONE_ERROR, PHONE_REQUIRED } from '../lib/phone';
 import { PhoneInput } from '../components/ui/PhoneInput';
+import { CANCELLATION_RULES } from './legal/CancellationPage';
 import { useProperties } from '../context/PropertyContext';
 import { useBookings } from '../context/BookingContext';
 import { useToast } from '../context/ToastContext';
@@ -606,6 +607,18 @@ export const PropertyDetailsPage: React.FC = () => {
               <Info className="w-3.5 h-3.5 text-brand-gold" />
               <span>Nothing is charged now. We confirm availability on WhatsApp first.</span>
             </div>
+            <p className="text-[11px] text-slate-500 text-center">
+              <span className="font-semibold text-brand-slate">{property.cancellation_policy} cancellation:</span>{' '}
+              {CANCELLATION_RULES[property.cancellation_policy]?.summary}{' '}
+              <Link to="/cancellation-policy" className="underline underline-offset-2 hover:text-brand-slate">
+                Details
+              </Link>
+              . By sending a request you agree to our{' '}
+              <Link to="/terms" className="underline underline-offset-2 hover:text-brand-slate">
+                Terms
+              </Link>
+              .
+            </p>
           </div>
         </div>
       </div>

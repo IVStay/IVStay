@@ -14,3 +14,16 @@ export const guestWhatsappLink = (phone: string | null | undefined, message = ''
   if (digits.length < 8) return null;
   return `https://wa.me/${digits}${message ? `?text=${encodeURIComponent(message)}` : ''}`;
 };
+
+/** Business details shown on the policy pages and in the footer. */
+export const BUSINESS = {
+  name: 'IvStay',
+  email: 'bookivstay@gmail.com',
+  phoneDisplay: '+91 99158 40484',
+  /** Registered business name and postal address. Shown on the policy pages once filled in. */
+  legalName: '',
+  address: '',
+};
+
+/** Date the policy pages were last changed (shown at the top of each page). */
+export const POLICIES_UPDATED = '9 November 2026';

@@ -310,8 +310,15 @@ export const SignInPage: React.FC = () => {
           )}
           {mode === 'signup' && (
             <p>
-              By creating an account you agree that IvStay may contact you about your bookings by phone,
-              WhatsApp and email.
+              By creating an account you agree to our{' '}
+              <Link to="/terms" className="font-semibold text-brand-slate hover:underline">
+                Terms of Use
+              </Link>{' '}
+              and{' '}
+              <Link to="/privacy" className="font-semibold text-brand-slate hover:underline">
+                Privacy Policy
+              </Link>
+              , and to IvStay contacting you about your bookings by phone, WhatsApp and email.
             </p>
           )}
           <p>

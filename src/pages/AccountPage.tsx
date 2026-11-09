@@ -192,15 +192,7 @@ export const AccountPage: React.FC = () => {
                 placeholder="98765 43210"
                 className={field}
               />
-              <p className="text-[11px] mt-1">
-                {user.phone && user.phone_verified ? (
-                  <span className="font-semibold text-emerald-700">✓ Verified by IvStay</span>
-                ) : user.phone ? (
-                  <span className="text-slate-500">Not verified yet. We confirm it on our first WhatsApp chat.</span>
-                ) : (
-                  <span className="text-slate-400">{PHONE_HINT}</span>
-                )}
-              </p>
+              <p className="text-[11px] text-slate-400 mt-1">{PHONE_HINT}</p>
             </div>
             <div>
               <label htmlFor="acc-email" className="block text-xs font-semibold text-slate-600 mb-1.5">

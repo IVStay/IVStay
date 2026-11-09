@@ -132,9 +132,8 @@ in `src/context/`.
   the team (one-tap WhatsApp / call / email buttons) and the guest (if they gave an email), and
   lands in the admin **Bookings Ledger** with a WhatsApp button. Admins see all accounts under
   **Customers** (search, CSV export).
-- Phone numbers (free checks, no SMS): Indian mobiles must be 10 digits starting 6-9 and are stored
-  as `+91…`; other countries need `+` and the country code. Admins mark a number **Verified** on the
-  Customers page after reaching the customer on it; changing the number clears that.
+- Phone numbers (basic checks, no SMS codes): Indian mobiles must be 10 digits starting 6-9 and are
+  stored as `+91…`; other countries need `+` and the country code.
 - The admin console isn't linked from the public site: go to `/admin`.
 - Emails go out from Gmail (`supabase/functions/notify-booking` for alerts; Supabase Auth SMTP for
   sign-up and reset codes). One-time setup, which also applies migrations and deploys the function:

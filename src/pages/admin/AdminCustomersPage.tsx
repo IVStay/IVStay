@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { format, parseISO } from 'date-fns';
-import { BadgeCheck, Download, Mail, MessageCircle, Phone, RefreshCw, Search, Users } from 'lucide-react';
-import { fetchCustomers, describeError, setPhoneVerified, type Customer } from '../../lib/db';
+import { Download, Mail, MessageCircle, Phone, RefreshCw, Search, Users } from 'lucide-react';
+import { fetchCustomers, describeError, type Customer } from '../../lib/db';
 import { guestWhatsappLink } from '../../config/contact';
 import { supabase } from '../../lib/supabase';
 
@@ -17,23 +17,6 @@ export const AdminCustomersPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
-  const [savingId, setSavingId] = useState<string | null>(null);
-
-  const toggleVerified = async (customer: Customer) => {
-    const verify = !customer.phone_verified_at;
-    if (verify && !confirm(`Mark ${customer.phone} as ${customer.full_name || 'this customer'}'s real number? Do this after you've reached them on it.`)) {
-      return;
-    }
-    setSavingId(customer.id);
-    try {
-      const at = await setPhoneVerified(customer.id, verify);
-      setCustomers((list) => list?.map((c) => (c.id === customer.id ? { ...c, phone_verified_at: at } : c)) ?? null);
-    } catch (e) {
-      setError(describeError(e));
-    } finally {
-      setSavingId(null);
-    }
-  };
 
   const load = async () => {
     if (!supabase) {
@@ -66,12 +49,11 @@ export const AdminCustomersPage: React.FC = () => {
   }, [customers, query]);
 
   const exportCsv = () => {
-    const header = ['Name', 'Email', 'Phone', 'Phone verified', 'Signed up with', 'Joined', 'Last sign-in', 'Requests', 'Last request'];
+    const header = ['Name', 'Email', 'Phone', 'Signed up with', 'Joined', 'Last sign-in', 'Requests', 'Last request'];
     const rows = shown.map((c) => [
       c.full_name,
       c.email,
       c.phone,
-      c.phone_verified_at ? 'yes' : 'no',
       c.provider,
       c.created_at,
       c.last_sign_in_at ?? '',
@@ -89,7 +71,6 @@ export const AdminCustomersPage: React.FC = () => {
   };
 
   const withPhone = customers?.filter((c) => c.phone).length ?? 0;
-  const verified = customers?.filter((c) => c.phone && c.phone_verified_at).length ?? 0;
   const withRequests = customers?.filter((c) => c.booking_count > 0).length ?? 0;
 
   return (
@@ -120,11 +101,10 @@ export const AdminCustomersPage: React.FC = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-3 gap-4">
         {[
           ['Accounts', customers?.length ?? 0],
           ['With phone number', withPhone],
-          ['Phone verified', verified],
           ['Sent a request', withRequests],
         ].map(([label, value]) => (
           <div key={label} className="bg-slate-900 border border-slate-800 rounded-2xl p-4">
@@ -186,24 +166,6 @@ export const AdminCustomersPage: React.FC = () => {
                         <a href={`tel:${c.phone}`} className="flex items-center gap-1 text-slate-300 hover:text-white">
                           <Phone className="w-3 h-3" /> {c.phone}
                         </a>
-                        {c.phone_verified_at ? (
-                          <button
-                            onClick={() => void toggleVerified(c)}
-                            disabled={savingId === c.id}
-                            title={`Verified ${when(c.phone_verified_at)}. Click to undo.`}
-                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-sky-600/20 text-sky-300 text-[10px] font-semibold"
-                          >
-                            <BadgeCheck className="w-3 h-3" /> Verified
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => void toggleVerified(c)}
-                            disabled={savingId === c.id}
-                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-amber-500/40 text-amber-300 hover:bg-amber-500/10 text-[10px] font-semibold"
-                          >
-                            Unverified · Mark verified
-                          </button>
-                        )}
                         {wa && (
                           <a
                             href={wa}

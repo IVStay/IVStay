@@ -31,7 +31,6 @@ export interface AuthenticatorSetup {
 interface Profile {
   full_name: string;
   phone: string | null;
-  phone_verified: boolean;
   role: UserRole;
 }
 
@@ -163,7 +162,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       const [{ data: row }, { data: level }] = await Promise.all([
-        supabase.from('profiles').select('full_name, phone, phone_verified_at, role').eq('id', current.user.id).maybeSingle(),
+        supabase.from('profiles').select('full_name, phone, role').eq('id', current.user.id).maybeSingle(),
         supabase.auth.mfa.getAuthenticatorAssuranceLevel(),
       ]);
       if (run !== syncRun.current) return;
@@ -173,7 +172,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           ? {
               full_name: row.full_name ?? '',
               phone: row.phone ?? null,
-              phone_verified: !!row.phone_verified_at,
               role: row.role === 'admin' ? 'admin' : 'guest',
             }
           : null
@@ -477,7 +475,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         email: session.user.email ?? '',
         full_name: profile?.full_name || (session.user.user_metadata?.full_name as string | undefined) || '',
         phone: profile?.phone ?? undefined,
-        phone_verified: profile?.phone_verified ?? false,
         role: profile?.role ?? 'guest',
         avatar_url: (session.user.user_metadata?.avatar_url as string | undefined) || undefined,
         created_at: session.user.created_at,

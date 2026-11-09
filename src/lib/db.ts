@@ -498,9 +498,3 @@ export async function fetchCustomers(): Promise<Customer[]> {
   return (data ?? []).map((row) => ({ ...row, booking_count: Number(row.booking_count) }));
 }
 
-/** Marks a customer's phone number as confirmed by the team, or clears it (admins only). */
-export async function setPhoneVerified(userId: string, verified: boolean): Promise<string | null> {
-  const { data, error } = await db().rpc('admin_set_phone_verified', { p_user_id: userId, p_verified: verified });
-  if (error) throw error;
-  return (data as string | null) ?? null;
-}

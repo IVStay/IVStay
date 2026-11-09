@@ -5,8 +5,6 @@ export interface User {
   email: string;
   full_name: string;
   phone?: string;
-  /** The IvStay team has confirmed this number belongs to the customer */
-  phone_verified?: boolean;
   role: UserRole;
   avatar_url?: string;
   created_at: string;

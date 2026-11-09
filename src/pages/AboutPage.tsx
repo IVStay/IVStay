@@ -43,7 +43,7 @@ export const AboutPage: React.FC = () => {
   useEffect(() => {
     document.title = 'About us | IvStay';
     return () => {
-      document.title = 'IvStay | Luxury Villas, Boutique BnBs & Hotels';
+      document.title = 'IvStay | Hand-picked villas, BnBs & hotels';
     };
   }, []);
 

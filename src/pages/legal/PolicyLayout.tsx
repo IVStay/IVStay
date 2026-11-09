@@ -19,7 +19,7 @@ export const PolicyLayout: React.FC<{ title: string; intro: React.ReactNode; chi
   useEffect(() => {
     document.title = `${title} | IvStay`;
     return () => {
-      document.title = 'IvStay | Luxury Villas, Boutique BnBs & Hotels';
+      document.title = 'IvStay | Hand-picked villas, BnBs & hotels';
     };
   }, [title]);
 

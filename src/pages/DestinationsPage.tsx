@@ -13,7 +13,7 @@ export const DestinationsPage: React.FC = () => {
   useEffect(() => {
     document.title = 'Destinations | IvStay';
     return () => {
-      document.title = 'IvStay | Luxury Villas, Boutique BnBs & Hotels';
+      document.title = 'IvStay | Hand-picked villas, BnBs & hotels';
     };
   }, []);
 

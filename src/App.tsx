@@ -5,10 +5,10 @@ import { PropertyProvider } from './context/PropertyContext';
 import { BookingProvider } from './context/BookingContext';
 import { ToastProvider } from './context/ToastContext';
 
-import { Navigation } from '@/components/layout/Navigation/Navigation';
+import { SiteHeader } from './components/layout/SiteHeader';
+import { HomePage } from './pages/HomePage';
 
 // Public Pages
-import HomePagePartner from '@/app/page';
 
 // Stay listing + detail pages (property links across the site point to /stays/:id)
 import { ListingsPage } from './pages/ListingsPage';
@@ -51,12 +51,12 @@ const AppContent: React.FC = () => {
   return (
     <div className="flex flex-col min-h-screen">
       <ScrollToTop />
-      {!isAdminRoute && <Navigation />}
+      {!isAdminRoute && <SiteHeader />}
 
       <main className="flex-1">
         <Routes>
           {/* Public Routes */}
-          <Route path="/" element={<HomePagePartner />} />
+          <Route path="/" element={<HomePage />} />
           <Route
             path="/villas"
             element={

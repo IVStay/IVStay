@@ -12,6 +12,7 @@ import { ReviewSection } from '../components/public/ReviewSection';
 import { MOCK_REVIEWS } from '../data/mockData';
 import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
+import { LogoMark } from '../components/brand/Logo';
 import { whatsappLink } from '../config/contact';
 import { formatINR } from '../utils/currency';
 import { stayPath } from '../lib/links';
@@ -204,56 +205,52 @@ export const PropertyDetailsPage: React.FC = () => {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-10">
+    <div className="shell pt-6 pb-20 space-y-8">
       {/* Header Section */}
       <div className="space-y-4">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 mb-2">
               {property.is_verified && <Badge variant="verified" />}
-              <span className="text-xs font-bold uppercase tracking-widest text-slate-500">
+              <span className="text-xs font-semibold uppercase tracking-widest text-ivy">
                 {property.category === 'bnbs_and_villas'
                   ? property.property_type === 'bnb'
-                    ? 'Luxury Bed & Breakfast'
-                    : 'Private Luxury Villa'
+                    ? 'Bed & breakfast'
+                    : 'Entire villa'
                   : property.category === 'hotels'
-                  ? 'Boutique Hotel'
-                  : 'Home Stay'}
+                  ? 'Boutique hotel'
+                  : 'Home stay'}
               </span>
             </div>
-            <h1 className="font-serif text-3xl sm:text-4xl font-extrabold text-brand-slate">
+            <h1 className="text-[26px] sm:text-[32px] leading-tight font-semibold tracking-tight text-ink">
               {property.title}
             </h1>
-            <p className="text-xs sm:text-sm text-slate-500 mt-1">{property.tagline}</p>
+            {property.tagline && <p className="text-ink-muted mt-1">{property.tagline}</p>}
           </div>
 
           {/* Share & Wishlist actions */}
           <div className="flex items-center gap-3 shrink-0">
             <button
               onClick={handleShare}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-full border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+              className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold text-ink underline underline-offset-4 hover:bg-surface-muted transition-colors"
             >
-              <Share2 className="w-4 h-4 text-slate-500" />
+              <Share2 className="w-4 h-4" />
               <span>Share</span>
             </button>
             <button
               onClick={handleWishlistToggle}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-full border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+              className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold text-ink underline underline-offset-4 hover:bg-surface-muted transition-colors"
             >
-              <Heart
-                className={`w-4 h-4 ${
-                  favorited ? 'fill-rose-500 text-rose-500' : 'text-slate-500'
-                }`}
-              />
+              <Heart className={`w-4 h-4 ${favorited ? 'fill-ivy text-ivy' : ''}`} />
               <span>{favorited ? 'Saved' : 'Save'}</span>
             </button>
           </div>
         </div>
 
         {/* Location & Rating pin bar */}
-        <div className="flex flex-wrap items-center gap-4 text-xs font-medium text-slate-600">
-          <div className="flex items-center gap-1 font-bold text-brand-slate">
-            <Star className="w-4 h-4 fill-brand-gold text-brand-gold" />
+        <div className="flex flex-wrap items-center gap-3 text-sm text-ink">
+          <div className="flex items-center gap-1 font-semibold text-ink">
+            <Star className="w-4 h-4 fill-ink text-ink" />
             {hasRating ? (
               <>
                 <span>{property.rating.toFixed(2)}</span>
@@ -263,10 +260,10 @@ export const PropertyDetailsPage: React.FC = () => {
               <span>New listing</span>
             )}
           </div>
-          <span>•</span>
-          <div className="flex items-center gap-1">
-            <MapPin className="w-4 h-4 text-brand-gold" />
-            <span>{property.address}, {property.city}, {property.state}</span>
+          <span className="text-ink-faint">·</span>
+          <div className="flex items-center gap-1 font-semibold underline underline-offset-4">
+            <MapPin className="w-4 h-4" />
+            <span>{[property.address, property.city, property.state].filter((part) => part && part.trim()).join(', ')}</span>
           </div>
         </div>
       </div>
@@ -279,14 +276,14 @@ export const PropertyDetailsPage: React.FC = () => {
         {/* Left Overview Column */}
         <div className="lg:col-span-7 space-y-10">
           {/* Overview Specs Bar */}
-          <div className="flex items-center justify-between p-6 bg-slate-50 rounded-3xl border border-slate-100">
-            <div className="flex items-center gap-2 text-xs font-semibold text-slate-700">
-              <Users className="w-4 h-4 text-brand-gold" />
+          <div className="flex flex-wrap items-center gap-x-8 gap-y-3 pb-8 border-b border-line-soft text-ink">
+            <div className="flex items-center gap-2">
+              <Users className="w-5 h-5 text-ink-muted" strokeWidth={1.6} />
               <span>{property.max_guests} Guests</span>
             </div>
             {property.bedrooms != null && (
-              <div className="flex items-center gap-2 text-xs font-semibold text-slate-700">
-                <Bed className="w-4 h-4 text-brand-gold" />
+              <div className="flex items-center gap-2">
+                <Bed className="w-5 h-5 text-ink-muted" strokeWidth={1.6} />
                 <span>
                   {property.bedrooms} Bedroom{property.bedrooms === 1 ? '' : 's'}
                   {property.beds != null ? ` (${property.beds} beds)` : ''}
@@ -294,8 +291,8 @@ export const PropertyDetailsPage: React.FC = () => {
               </div>
             )}
             {property.bathrooms != null && (
-              <div className="flex items-center gap-2 text-xs font-semibold text-slate-700">
-                <Bath className="w-4 h-4 text-brand-gold" />
+              <div className="flex items-center gap-2">
+                <Bath className="w-5 h-5 text-ink-muted" strokeWidth={1.6} />
                 <span>{property.bathrooms} Bathroom{property.bathrooms === 1 ? '' : 's'}</span>
               </div>
             )}
@@ -303,8 +300,8 @@ export const PropertyDetailsPage: React.FC = () => {
 
           {/* Highlights: only claims that apply to every verified listing */}
           {property.is_verified && (
-            <div className="space-y-4 pt-4 border-t border-slate-200">
-              <h3 className="font-serif text-xl font-bold text-brand-slate">Stay Highlights</h3>
+            <div className="space-y-4 pt-8 border-t border-line-soft">
+              <h3 className="text-[22px] font-semibold tracking-tight text-ink">Highlights</h3>
               <div className="flex items-start gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-100">
                 <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
                 <div>
@@ -318,64 +315,60 @@ export const PropertyDetailsPage: React.FC = () => {
           )}
 
           {/* Detailed Description */}
-          <div className="space-y-3 pt-4 border-t border-slate-200">
-            <h3 className="font-serif text-xl font-bold text-brand-slate">About This Stay</h3>
-            <p className="text-xs sm:text-sm text-slate-600 leading-relaxed whitespace-pre-line">
+          <div className="space-y-3 pt-8 border-t border-line-soft">
+            <h3 className="text-[22px] font-semibold tracking-tight text-ink">About this place</h3>
+            <p className="text-[15px] text-ink-soft leading-relaxed whitespace-pre-line">
               {property.description}
             </p>
           </div>
 
           {/* Categorized Amenities Grid */}
-          <div className="space-y-4 pt-4 border-t border-slate-200">
-            <h3 className="font-serif text-xl font-bold text-brand-slate">Available Amenities</h3>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          <div className="space-y-4 pt-8 border-t border-line-soft">
+            <h3 className="text-[22px] font-semibold tracking-tight text-ink">What this place offers</h3>
+            <div className="grid sm:grid-cols-2 gap-x-8 gap-y-4 pt-2">
               {property.amenities.map((amenity) => (
-                <div
-                  key={amenity}
-                  className="flex items-center gap-2 p-3 bg-white rounded-xl border border-slate-100 shadow-sm text-xs font-semibold text-slate-700"
-                >
-                  <Sparkles className="w-3.5 h-3.5 text-brand-gold shrink-0" />
-                  <span className="truncate">{amenity}</span>
+                <div key={amenity} className="flex items-center gap-4 text-[15px] text-ink">
+                  <CheckCircle className="w-5 h-5 text-ink-muted shrink-0" strokeWidth={1.5} />
+                  <span>{amenity}</span>
                 </div>
               ))}
             </div>
           </div>
 
           {/* Host / contact card */}
-          <div className="p-6 bg-slate-900 text-white rounded-3xl space-y-4 border border-slate-800 shadow-xl">
+          <div className="pt-8 border-t border-line-soft">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="flex items-center gap-4">
                 {property.host_avatar ? (
                   <img
                     src={property.host_avatar}
                     alt={property.host_name || 'Host'}
-                    className="w-14 h-14 rounded-full object-cover ring-2 ring-brand-gold"
+                    className="w-14 h-14 rounded-full object-cover"
                   />
                 ) : (
-                  <div className="w-14 h-14 rounded-full bg-brand-gold text-white flex items-center justify-center font-serif font-bold text-xl shrink-0">
-                    Iv
+                  <div className="w-14 h-14 rounded-full bg-ivy-50 text-ivy flex items-center justify-center shrink-0">
+                    <LogoMark size={28} />
                   </div>
                 )}
                 <div>
-                  <h4 className="font-serif text-lg font-bold flex items-center gap-1.5">
+                  <h4 className="text-lg font-semibold text-ink flex items-center gap-1.5">
                     {property.host_name ? `Hosted by ${property.host_name}` : 'Questions about this stay?'}
-                    {property.host_name && <CheckCircle className="w-4 h-4 text-brand-gold fill-brand-gold/20" />}
+                    {property.host_name && <CheckCircle className="w-4 h-4 text-ivy" />}
                   </h4>
-                  <p className="text-xs text-amber-300 font-semibold">
+                  <p className="text-sm text-ink-muted">
                     {property.host_joined || 'The IvStay team replies on WhatsApp.'}
                   </p>
                 </div>
               </div>
 
-              <Button
+              <button
+                type="button"
                 onClick={handleContactClick}
-                variant="gold"
-                size="sm"
-                className="flex items-center gap-1.5 shrink-0"
+                className="flex items-center gap-2 px-5 py-3 rounded-xl border border-ink text-sm font-semibold text-ink hover:bg-surface-muted shrink-0"
               >
-                <MessageSquare className="w-3.5 h-3.5" />
-                Ask on WhatsApp
-              </Button>
+                <MessageSquare className="w-4 h-4" />
+                Message on WhatsApp
+              </button>
             </div>
           </div>
 
@@ -391,24 +384,22 @@ export const PropertyDetailsPage: React.FC = () => {
 
         {/* Right Dynamic Sticky Reservation Card */}
         <div className="lg:col-span-5 sticky top-24">
-          <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-2xl space-y-6">
+          <div className="bg-white p-6 rounded-2xl border border-line shadow-float space-y-5">
             {/* Price Header */}
-            <div className="flex items-baseline justify-between pb-4 border-b border-slate-100">
+            <div className="flex items-baseline justify-between">
               <div>
-                <span className="font-serif text-3xl font-extrabold text-brand-slate">
-                  {formatINR(property.price_per_night)}
-                </span>
-                <span className="text-xs text-slate-500 font-medium"> / night</span>
+                <span className="text-[22px] font-semibold text-ink">{formatINR(property.price_per_night)}</span>
+                <span className="text-ink-muted"> night</span>
               </div>
-              <div className="flex items-center gap-1 text-xs font-bold text-brand-slate">
-                <Star className="w-3.5 h-3.5 fill-brand-gold text-brand-gold" />
+              <div className="flex items-center gap-1 text-sm font-semibold text-ink">
+                <Star className="w-3.5 h-3.5 fill-ink text-ink" />
                 <span>{hasRating ? property.rating.toFixed(2) : 'New'}</span>
               </div>
             </div>
 
             {/* Date Range Picker Container */}
-            <div className="border border-slate-200 rounded-2xl overflow-hidden divide-y divide-slate-200">
-              <div className="grid grid-cols-2 bg-slate-50">
+            <div className="border border-ink-faint rounded-xl overflow-hidden divide-y divide-ink-faint">
+              <div className="grid grid-cols-2">
                 <div className="p-3">
                   <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400">
                     Check-In

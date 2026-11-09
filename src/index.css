@@ -6,7 +6,10 @@
 
 @layer base {
   body {
-    @apply bg-[#FAFAF9] text-[#0F172A];
+    @apply bg-white text-ink;
+  }
+  ::selection {
+    @apply bg-ivy-100 text-ink;
   }
 }
 
@@ -19,7 +22,7 @@
   background: #f1f1f1;
 }
 ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: #d4d4d4;
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
@@ -33,4 +36,11 @@
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+/* Page width used by the public site (header, sections, footer) */
+@layer components {
+  .shell {
+    @apply mx-auto w-full max-w-[1360px] px-5 sm:px-8 lg:px-10;
+  }
 }

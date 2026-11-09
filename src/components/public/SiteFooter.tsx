@@ -1,71 +1,69 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Mail, Phone, MessageCircle } from 'lucide-react';
+import { Mail, MessageCircle, Phone } from 'lucide-react';
 import { BUSINESS, whatsappLink } from '../../config/contact';
+import { Logo } from '../brand/Logo';
 
-const linkClass = 'text-slate-400 hover:text-white transition-colors';
+const col = 'space-y-3 text-sm';
+const heading = 'font-semibold text-ink';
+const link = 'block text-ink-soft hover:underline underline-offset-4';
 
 export const SiteFooter: React.FC = () => (
-  <footer className="bg-brand-slate text-white">
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-14 pb-8">
-      <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1.2fr]">
-        <div className="space-y-3">
-          <p className="font-serif text-2xl font-bold">IVStay</p>
-          <p className="text-sm text-slate-400 leading-relaxed max-w-xs">
-            Hand-picked villas, BnBs and hotels in India, booked with a real person on the other end.
+  <footer className="bg-surface-muted border-t border-line-soft mt-auto">
+    <div className="shell py-12">
+      <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="space-y-4">
+          <Logo />
+          <p className="text-sm text-ink-muted leading-relaxed max-w-xs">
+            Hand-picked villas, BnBs and boutique hotels in India, booked with help from real people.
           </p>
         </div>
 
-        <div className="space-y-3">
-          <p className="text-xs font-bold uppercase tracking-widest text-brand-gold">Explore</p>
-          <ul className="space-y-2 text-sm">
-            <li><Link to="/stays" className={linkClass}>All stays</Link></li>
-            <li><Link to="/villas" className={linkClass}>Villas</Link></li>
-            <li><Link to="/hotels" className={linkClass}>Hotels &amp; Resorts</Link></li>
-            <li><Link to="/destinations" className={linkClass}>Destinations</Link></li>
-            <li><Link to="/about" className={linkClass}>About us</Link></li>
-          </ul>
+        <div className={col}>
+          <p className={heading}>Explore</p>
+          <Link to="/stays" className={link}>All stays</Link>
+          <Link to="/villas" className={link}>Villas &amp; BnBs</Link>
+          <Link to="/hotels" className={link}>Hotels &amp; resorts</Link>
+          <Link to="/destinations" className={link}>Destinations</Link>
+          <Link to="/blogs" className={link}>Travel guides</Link>
         </div>
 
-        <div className="space-y-3">
-          <p className="text-xs font-bold uppercase tracking-widest text-brand-gold">Policies</p>
-          <ul className="space-y-2 text-sm">
-            <li><Link to="/privacy" className={linkClass}>Privacy Policy</Link></li>
-            <li><Link to="/terms" className={linkClass}>Terms of Use</Link></li>
-            <li><Link to="/cancellation-policy" className={linkClass}>Cancellation &amp; Refunds</Link></li>
-          </ul>
+        <div className={col}>
+          <p className={heading}>IvStay</p>
+          <Link to="/about" className={link}>About us</Link>
+          <Link to="/contact?type=list" className={link}>List your property</Link>
+          <Link to="/cancellation-policy" className={link}>Cancellation &amp; refunds</Link>
+          <Link to="/privacy" className={link}>Privacy policy</Link>
+          <Link to="/terms" className={link}>Terms of use</Link>
         </div>
 
-        <div className="space-y-3">
-          <p className="text-xs font-bold uppercase tracking-widest text-brand-gold">Contact</p>
-          <ul className="space-y-2 text-sm">
-            <li>
-              <a href={`tel:${BUSINESS.phoneDisplay.replace(/\s/g, '')}`} className={`${linkClass} flex items-center gap-2`}>
-                <Phone className="w-4 h-4" /> {BUSINESS.phoneDisplay}
-              </a>
-            </li>
-            <li>
-              <a
-                href={whatsappLink('Hi IvStay, I have a question.')}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={`${linkClass} flex items-center gap-2`}
-              >
-                <MessageCircle className="w-4 h-4" /> WhatsApp us
-              </a>
-            </li>
-            <li>
-              <a href={`mailto:${BUSINESS.email}`} className={`${linkClass} flex items-center gap-2`}>
-                <Mail className="w-4 h-4" /> {BUSINESS.email}
-              </a>
-            </li>
-          </ul>
+        <div className={col}>
+          <p className={heading}>Support</p>
+          <a href={`tel:${BUSINESS.phoneDisplay.replace(/\s/g, '')}`} className={`${link} flex items-center gap-2`}>
+            <Phone className="w-4 h-4" /> {BUSINESS.phoneDisplay}
+          </a>
+          <a
+            href={whatsappLink('Hi IvStay, I have a question.')}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={`${link} flex items-center gap-2`}
+          >
+            <MessageCircle className="w-4 h-4" /> WhatsApp us
+          </a>
+          <a href={`mailto:${BUSINESS.email}`} className={`${link} flex items-center gap-2`}>
+            <Mail className="w-4 h-4" /> {BUSINESS.email}
+          </a>
+          <Link to="/contact" className={link}>Help centre</Link>
         </div>
       </div>
 
-      <div className="mt-12 pt-6 border-t border-slate-700/60 flex flex-col sm:flex-row justify-between gap-2 text-xs text-slate-500">
-        <p>© {new Date().getFullYear()} {BUSINESS.legalName || BUSINESS.name}. All rights reserved.</p>
-        <p>Prices in Indian rupees (₹).</p>
+      <div className="mt-12 pt-6 border-t border-line flex flex-col sm:flex-row justify-between gap-3 text-sm text-ink-soft">
+        <p>
+          © {new Date().getFullYear()} {BUSINESS.legalName || BUSINESS.name} ·{' '}
+          <Link to="/privacy" className="hover:underline">Privacy</Link> ·{' '}
+          <Link to="/terms" className="hover:underline">Terms</Link>
+        </p>
+        <p className="font-semibold text-ink">English (IN) · ₹ INR</p>
       </div>
     </div>
   </footer>

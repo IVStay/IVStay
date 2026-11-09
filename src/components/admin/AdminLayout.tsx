@@ -1,4 +1,5 @@
 import React from 'react';
+import { LogoMark } from '../brand/Logo';
 import { Navigate, Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { LayoutDashboard, Building2, CalendarDays, LogOut, Shield, ArrowLeft, Sparkles, Users, Inbox } from 'lucide-react';
@@ -37,7 +38,7 @@ export const AdminLayout: React.FC = () => {
           <div className="flex items-center justify-between">
             <Link to="/" className="flex items-center gap-2">
               <div className="w-9 h-9 rounded-xl bg-brand-gold text-white flex items-center justify-center font-serif font-bold text-lg shadow-md">
-                Iv
+                <LogoMark size={22} />
               </div>
               <div>
                 <span className="font-serif text-xl font-bold text-white tracking-tight">IvStay Admin</span>

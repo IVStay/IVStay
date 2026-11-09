@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { LogoMark } from '../../components/brand/Logo';
 import { useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { useAuth, type AdminStep, type AuthenticatorSetup } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
@@ -120,7 +121,7 @@ export const AdminLoginPage: React.FC = () => {
         {/* Header */}
         <div className="text-center space-y-2">
           <div className="w-14 h-14 bg-brand-gold text-white rounded-2xl flex items-center justify-center font-serif font-bold text-2xl mx-auto shadow-gold-glow">
-            Iv
+            <LogoMark size={30} />
           </div>
           <h1 className="font-serif text-2xl font-bold text-white tracking-tight">IvStay Admin Portal</h1>
           <p className="text-xs text-slate-400">

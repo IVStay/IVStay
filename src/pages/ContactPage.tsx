@@ -28,7 +28,7 @@ export const ContactPage: React.FC = () => {
   useEffect(() => {
     document.title = 'Contact us | IvStay';
     return () => {
-      document.title = 'IvStay | Luxury Villas, Boutique BnBs & Hotels';
+      document.title = 'IvStay | Hand-picked villas, BnBs & hotels';
     };
   }, []);
 

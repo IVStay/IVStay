@@ -1,28 +1,75 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { Building2, Home, LayoutGrid, Map as MapIcon, Minus, Plus, Search, SlidersHorizontal, Trees, X } from 'lucide-react';
 import { useProperties } from '../context/PropertyContext';
 import { PropertyCard } from '../components/public/PropertyCard';
 import { InteractiveMap } from '../components/public/InteractiveMap';
-import { CategoryFilterBar } from '../components/public/CategoryFilterBar';
-import { LayoutGrid, Map, SlidersHorizontal, Sparkles, Building2, RotateCcw, Check, Search } from 'lucide-react';
-import { Button } from '../components/ui/Button';
 import { formatINR } from '../utils/currency';
 
+type Category = 'all' | 'bnbs_and_villas' | 'hotels' | 'home_stays';
+
 interface ListingsPageProps {
-  defaultCategory?: 'all' | 'bnbs_and_villas' | 'hotels' | 'home_stays';
+  defaultCategory?: Category;
 }
 
+const CATEGORY_TABS: { key: Category; label: string; icon: React.ElementType }[] = [
+  { key: 'all', label: 'All stays', icon: LayoutGrid },
+  { key: 'bnbs_and_villas', label: 'Villas & BnBs', icon: Home },
+  { key: 'hotels', label: 'Hotels', icon: Building2 },
+  { key: 'home_stays', label: 'Home stays', icon: Trees },
+];
+
+const Counter: React.FC<{ label: string; value: number; onChange: (n: number) => void; max: number }> = ({
+  label,
+  value,
+  onChange,
+  max,
+}) => (
+  <div className="flex items-center justify-between py-4">
+    <span className="text-ink">{label}</span>
+    <div className="flex items-center gap-4">
+      <button
+        type="button"
+        aria-label={`Fewer ${label.toLowerCase()}`}
+        disabled={value <= 0}
+        onClick={() => onChange(Math.max(0, value - 1))}
+        className="w-8 h-8 rounded-full border border-line text-ink-muted hover:border-ink hover:text-ink disabled:opacity-30 disabled:hover:border-line flex items-center justify-center"
+      >
+        <Minus className="w-3.5 h-3.5" />
+      </button>
+      <span className="w-10 text-center tabular-nums">{value === 0 ? 'Any' : `${value}+`}</span>
+      <button
+        type="button"
+        aria-label={`More ${label.toLowerCase()}`}
+        disabled={value >= max}
+        onClick={() => onChange(Math.min(max, value + 1))}
+        className="w-8 h-8 rounded-full border border-line text-ink-muted hover:border-ink hover:text-ink disabled:opacity-30 flex items-center justify-center"
+      >
+        <Plus className="w-3.5 h-3.5" />
+      </button>
+    </div>
+  </div>
+);
+
 export const ListingsPage: React.FC<ListingsPageProps> = ({ defaultCategory = 'all' }) => {
-  const { properties, filterState, setFilterState, resetFilters } = useProperties();
+  const { properties, filterState, setFilterState, resetFilters, loading } = useProperties();
   const [searchParams] = useSearchParams();
+  const [view, setView] = useState<'grid' | 'map'>('grid');
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   const categoryParam = searchParams.get('category');
-  const urlCategory = (['all', 'bnbs_and_villas', 'hotels', 'home_stays'] as const).find((c) => c === categoryParam) ?? null;
+  const urlCategory = CATEGORY_TABS.map((t) => t.key).find((c) => c === categoryParam) ?? null;
   const urlDestination = searchParams.get('destination');
   const urlGuests = searchParams.get('guests');
 
-  // Apply URL search parameters (e.g. from the home page search box) to the shared filters,
-  // so the on-page controls can still change them afterwards.
+  useEffect(() => {
+    document.title = 'Stays | IvStay';
+    return () => {
+      document.title = 'IvStay | Hand-picked villas, BnBs & hotels';
+    };
+  }, []);
+
+  // Apply search choices from the URL (home page search, collections) to the shared filters
   useEffect(() => {
     setFilterState((prev) => ({
       ...prev,
@@ -32,345 +79,253 @@ export const ListingsPage: React.FC<ListingsPageProps> = ({ defaultCategory = 'a
     }));
   }, [urlDestination, urlGuests, urlCategory, setFilterState]);
 
-  // The price slider's top end follows the most expensive stay; the top position means "no limit".
-  const highestPrice = properties.reduce((max, p) => Math.max(max, p.price_per_night || 0), 0);
+  const live = useMemo(() => properties.filter((p) => p.status === 'active'), [properties]);
+
+  // The price slider's top end follows the most expensive stay; the top position means "no limit"
+  const highestPrice = live.reduce((max, p) => Math.max(max, p.price_per_night || 0), 0);
   const priceCeiling = Math.max(10000, Math.ceil(highestPrice / 5000) * 5000);
   const sliderValue = Math.min(filterState.priceRange[1], priceCeiling);
   const maxPrice = sliderValue >= priceCeiling ? Infinity : sliderValue;
 
-  const [viewMode, setViewMode] = useState<'grid' | 'split'>('grid');
-  const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false);
+  // Amenity filters come from what the live stays actually offer
+  const amenityOptions = useMemo(() => {
+    const counts = new Map<string, number>();
+    live.forEach((p) => p.amenities.forEach((a) => counts.set(a, (counts.get(a) ?? 0) + 1)));
+    return [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([a]) => a).slice(0, 12);
+  }, [live]);
 
-  // Filter properties logic
-  const filteredProperties = properties.filter((p) => {
-    // Category filter
-    const activeCat = defaultCategory !== 'all' ? defaultCategory : filterState.category;
-    if (activeCat !== 'all' && p.category !== activeCat) {
-      return false;
-    }
+  const activeCategory: Category = defaultCategory !== 'all' ? defaultCategory : (filterState.category as Category);
 
-    // Destination filter
-    const activeDest = filterState.destination.trim();
-    if (activeDest) {
-      const match =
-        p.city.toLowerCase().includes(activeDest.toLowerCase()) ||
-        p.state.toLowerCase().includes(activeDest.toLowerCase()) ||
-        p.title.toLowerCase().includes(activeDest.toLowerCase());
-      if (!match) return false;
-    }
-
-    // Guests
+  const results = live.filter((p) => {
+    if (activeCategory !== 'all' && p.category !== activeCategory) return false;
+    const q = filterState.destination.trim().toLowerCase();
+    if (q && ![p.city, p.state, p.title].some((v) => v.toLowerCase().includes(q))) return false;
     if (filterState.guests > 1 && p.max_guests < filterState.guests) return false;
-
-    // Price range
-    if (p.price_per_night < filterState.priceRange[0] || p.price_per_night > maxPrice) {
-      return false;
-    }
-
-    // Bedrooms / Bathrooms
+    if (p.price_per_night < filterState.priceRange[0] || p.price_per_night > maxPrice) return false;
     if (filterState.bedrooms > 0 && (p.bedrooms ?? 0) < filterState.bedrooms) return false;
     if (filterState.bathrooms > 0 && (p.bathrooms ?? 0) < filterState.bathrooms) return false;
-
-    // Amenities
-    if (filterState.amenities.length > 0) {
-      const hasAll = filterState.amenities.every((am) =>
-        p.amenities.some((pa) => pa.toLowerCase().includes(am.toLowerCase()))
-      );
-      if (!hasAll) return false;
-    }
-
-    return p.status === 'active';
+    if (filterState.amenities.length && !filterState.amenities.every((a) => p.amenities.includes(a))) return false;
+    return true;
   });
 
-  const availableAmenities = [
-    'Private Infinity Pool',
-    'Private Chef',
-    'Sea View',
-    'High-Speed Wi-Fi',
-    'Jacuzzi',
-    'Wine Cellar',
-    'Air Conditioning',
-    'Beachfront',
-    'Ski-in / Ski-out',
-    'Helipad Access',
-  ];
+  const extraFilters =
+    (maxPrice !== Infinity ? 1 : 0) +
+    (filterState.bedrooms > 0 ? 1 : 0) +
+    (filterState.bathrooms > 0 ? 1 : 0) +
+    filterState.amenities.length;
+
+  const place = filterState.destination.trim();
+  const heading = `${loading && !live.length ? '' : `${results.length} `}${results.length === 1 ? 'stay' : 'stays'}${
+    place ? ` in ${place}` : ''
+  }`;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-      {/* Top Header & Switches */}
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 pb-6 border-b border-slate-200">
-        <div>
-          <h1 className="font-serif text-3xl font-extrabold text-brand-slate">
-            {defaultCategory === 'hotels' ? 'Luxury Boutique Hotels' : defaultCategory === 'home_stays' ? 'Home Stays' : defaultCategory === 'bnbs_and_villas' ? 'Villas & Boutique BnBs' : 'All Luxury Stays'}
-          </h1>
-          <p className="text-xs text-slate-500 mt-1">
-            Showing {filteredProperties.length} stay{filteredProperties.length === 1 ? '' : 's'}
-          </p>
-        </div>
-
-        {/* Action Controls */}
-        <div className="flex flex-wrap items-center gap-3">
-          {/* Category Switcher Bar (Hidden if we are on a specific category route unless it's /stays which is 'all') */}
+    <div className="pb-20">
+      {/* Category tabs and controls */}
+      <div className="shell border-b border-line-soft">
+        <div className="flex items-center gap-6">
           {defaultCategory === 'all' && (
-            <div className="flex items-center bg-slate-100 p-1 rounded-full border border-slate-200">
-              <button
-                onClick={() =>
-                  setFilterState((prev) => ({ ...prev, category: 'all' }))
-                }
-                className={`px-3 py-1.5 rounded-full text-xs font-bold transition-colors ${
-                  filterState.category === 'all'
-                    ? 'bg-white text-brand-slate shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                All
-              </button>
-              <button
-                onClick={() =>
-                  setFilterState((prev) => ({ ...prev, category: 'bnbs_and_villas' }))
-                }
-                className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-bold transition-colors ${
-                  filterState.category === 'bnbs_and_villas'
-                    ? 'bg-white text-brand-slate shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                <Sparkles className="w-3 h-3 text-brand-gold" />
-                Villas & BnBs
-              </button>
-              <button
-                onClick={() =>
-                  setFilterState((prev) => ({ ...prev, category: 'hotels' }))
-                }
-                className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-bold transition-colors ${
-                  filterState.category === 'hotels'
-                    ? 'bg-white text-brand-slate shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                <Building2 className="w-3 h-3 text-indigo-500" />
-                Hotels
-              </button>
-              <button
-                onClick={() =>
-                  setFilterState((prev) => ({ ...prev, category: 'home_stays' }))
-                }
-                className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-bold transition-colors ${
-                  filterState.category === 'home_stays'
-                    ? 'bg-white text-brand-slate shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                <Building2 className="w-3 h-3 text-green-500" />
-                Home Stays
-              </button>
+            <div className="flex gap-8 overflow-x-auto no-scrollbar flex-1" role="tablist" aria-label="Kinds of stay">
+              {CATEGORY_TABS.map(({ key, label, icon: Icon }) => {
+                const selected = activeCategory === key;
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    role="tab"
+                    aria-selected={selected}
+                    onClick={() => setFilterState((prev) => ({ ...prev, category: key }))}
+                    className={`shrink-0 flex flex-col items-center gap-2 py-3 border-b-2 text-xs font-semibold transition-colors ${
+                      selected ? 'border-ink text-ink' : 'border-transparent text-ink-muted hover:text-ink hover:border-line'
+                    }`}
+                  >
+                    <Icon className="w-6 h-6" strokeWidth={1.6} />
+                    {label}
+                  </button>
+                );
+              })}
             </div>
           )}
-
-          {/* Search Input */}
-          <div className="relative">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
-            <input
-              type="text"
-              placeholder="Search destination or property..."
-              value={filterState.destination}
-              onChange={(e) => setFilterState((prev) => ({ ...prev, destination: e.target.value }))}
-              className="pl-9 pr-4 py-2 rounded-full border border-slate-200 text-xs font-semibold focus:outline-none focus:border-brand-slate bg-white w-48 sm:w-64 transition-all"
-            />
-          </div>
-
-          {/* Filter Drawer Toggle */}
-          <button
-            onClick={() => setIsFilterDrawerOpen(!isFilterDrawerOpen)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-full border text-xs font-semibold transition-colors ${
-              isFilterDrawerOpen
-                ? 'bg-brand-slate text-white border-brand-slate'
-                : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-            }`}
-          >
-            <SlidersHorizontal className="w-4 h-4 text-brand-gold" />
-            <span>Filters</span>
-          </button>
-
-          {/* Grid vs Map Dual Layout Toggle */}
-          <div className="flex items-center bg-slate-100 p-1 rounded-full border border-slate-200">
+          <div className="flex items-center gap-2 py-3 ml-auto">
             <button
-              onClick={() => setViewMode('grid')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-colors ${
-                viewMode === 'grid'
-                  ? 'bg-brand-slate text-white shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
+              type="button"
+              onClick={() => setFiltersOpen(true)}
+              className="relative flex items-center gap-2 px-4 py-3 rounded-xl border border-line text-sm font-semibold text-ink hover:border-ink"
             >
-              <LayoutGrid className="w-3.5 h-3.5" />
-              <span>Grid View</span>
-            </button>
-            <button
-              onClick={() => setViewMode('split')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-colors ${
-                viewMode === 'split'
-                  ? 'bg-brand-slate text-white shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <Map className="w-3.5 h-3.5 text-brand-gold" />
-              <span>Map Split</span>
+              <SlidersHorizontal className="w-4 h-4" /> Filters
+              {extraFilters > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-ink text-white text-[11px] flex items-center justify-center">
+                  {extraFilters}
+                </span>
+              )}
             </button>
           </div>
         </div>
       </div>
 
-      {/* Expandable Filter Bar */}
-      {isFilterDrawerOpen && (
-        <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xl space-y-6 animate-in slide-in-from-top-4 duration-200">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-            <h3 className="font-serif text-lg font-bold text-brand-slate flex items-center gap-2">
-              <SlidersHorizontal className="w-4 h-4 text-brand-gold" />
-              Refine Luxury Stays
-            </h3>
-            <button
-              onClick={resetFilters}
-              className="flex items-center gap-1 text-xs font-semibold text-rose-600 hover:underline"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-              Reset All Filters
-            </button>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Price Slider */}
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
-                Max nightly price: {maxPrice === Infinity ? 'Any' : formatINR(sliderValue)}
-              </label>
+      <div className="shell pt-6 space-y-6">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <h1 className="text-2xl font-semibold tracking-tight text-ink">{heading}</h1>
+          <div className="flex items-center gap-3">
+            <label className="relative">
+              <Search className="w-4 h-4 text-ink-muted absolute left-3.5 top-1/2 -translate-y-1/2" />
               <input
-                type="range"
-                min="0"
-                max={priceCeiling}
-                step="500"
-                value={sliderValue}
-                onChange={(e) =>
-                  setFilterState((prev) => ({
-                    ...prev,
-                    priceRange: [prev.priceRange[0], parseInt(e.target.value, 10)],
-                  }))
-                }
-                className="w-full accent-brand-gold cursor-pointer"
+                type="text"
+                placeholder="Search a place or stay"
+                value={filterState.destination}
+                onChange={(e) => setFilterState((prev) => ({ ...prev, destination: e.target.value }))}
+                className="pl-10 pr-4 py-2.5 rounded-full border border-line text-sm focus:outline-none focus:border-ink w-56 sm:w-64"
               />
-            </div>
-
-            {/* Bedrooms Count */}
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
-                Minimum Bedrooms
-              </label>
-              <div className="flex items-center gap-2">
-                {[0, 1, 2, 3, 4, 5].map((num) => (
-                  <button
-                    key={num}
-                    onClick={() => setFilterState((prev) => ({ ...prev, bedrooms: num }))}
-                    className={`w-9 h-9 rounded-full text-xs font-bold border transition-colors ${
-                      filterState.bedrooms === num
-                        ? 'bg-brand-slate text-white border-brand-slate'
-                        : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
-                    }`}
-                  >
-                    {num === 0 ? 'Any' : `${num}+`}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Bathrooms Count */}
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
-                Minimum Bathrooms
-              </label>
-              <div className="flex items-center gap-2">
-                {[0, 1, 2, 3, 4].map((num) => (
-                  <button
-                    key={num}
-                    onClick={() => setFilterState((prev) => ({ ...prev, bathrooms: num }))}
-                    className={`w-9 h-9 rounded-full text-xs font-bold border transition-colors ${
-                      filterState.bathrooms === num
-                        ? 'bg-brand-slate text-white border-brand-slate'
-                        : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
-                    }`}
-                  >
-                    {num === 0 ? 'Any' : `${num}+`}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Luxury Amenities Checkboxes */}
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">
-              Luxury Amenities & Features
             </label>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
-              {availableAmenities.map((amenity) => {
-                const isSelected = filterState.amenities.includes(amenity);
-                return (
-                  <button
-                    key={amenity}
-                    type="button"
-                    onClick={() =>
-                      setFilterState((prev) => ({
-                        ...prev,
-                        amenities: isSelected
-                          ? prev.amenities.filter((a) => a !== amenity)
-                          : [...prev.amenities, amenity],
-                      }))
-                    }
-                    className={`flex items-center gap-2 p-2.5 rounded-xl border text-xs font-medium text-left transition-colors ${
-                      isSelected
-                        ? 'bg-amber-50 border-brand-gold text-amber-900 font-bold'
-                        : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
-                    }`}
-                  >
-                    <div
-                      className={`w-4 h-4 rounded flex items-center justify-center border ${
-                        isSelected ? 'bg-brand-gold border-brand-gold text-white' : 'border-slate-300'
-                      }`}
-                    >
-                      {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
-                    </div>
-                    <span className="truncate">{amenity}</span>
-                  </button>
-                );
-              })}
+            <div className="hidden md:flex rounded-full border border-line p-1">
+              {(
+                [
+                  ['grid', 'Grid', LayoutGrid],
+                  ['map', 'Map', MapIcon],
+                ] as const
+              ).map(([key, label, Icon]) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setView(key)}
+                  aria-pressed={view === key}
+                  className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-sm font-semibold transition-colors ${
+                    view === key ? 'bg-ink text-white' : 'text-ink-muted hover:text-ink'
+                  }`}
+                >
+                  <Icon className="w-4 h-4" /> {label}
+                </button>
+              ))}
             </div>
           </div>
         </div>
-      )}
 
-      {/* Main Content Layout (Grid vs Split Map) */}
-      {viewMode === 'grid' ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {filteredProperties.length > 0 ? (
-            filteredProperties.map((prop) => <PropertyCard key={prop.id} property={prop} />)
-          ) : (
-            <div className="col-span-full py-16 text-center bg-white rounded-3xl border border-slate-100 space-y-4">
-              <Sparkles className="w-10 h-10 text-amber-400 mx-auto" />
-              <h3 className="font-serif text-xl font-bold text-brand-slate">No luxury stays found</h3>
-              <p className="text-xs text-slate-500">Try adjusting your filters or destination search.</p>
-              <Button onClick={resetFilters} variant="gold" size="sm">
-                Clear Filters
-              </Button>
-            </div>
-          )}
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          <div className="lg:col-span-6 grid grid-cols-1 sm:grid-cols-2 gap-6 max-h-[700px] overflow-y-auto pr-2 no-scrollbar">
-            {filteredProperties.map((prop) => (
-              <PropertyCard key={prop.id} property={prop} />
+        {results.length === 0 ? (
+          <div className="py-20 text-center space-y-3">
+            <h2 className="text-xl font-semibold text-ink">{loading ? 'Loading stays…' : 'No exact matches'}</h2>
+            {!loading && (
+              <>
+                <p className="text-ink-muted">Try changing or removing some of your filters, or searching another place.</p>
+                <button
+                  type="button"
+                  onClick={resetFilters}
+                  className="mt-2 px-6 py-3 rounded-xl border border-ink text-sm font-semibold text-ink hover:bg-surface-muted"
+                >
+                  Remove all filters
+                </button>
+              </>
+            )}
+          </div>
+        ) : view === 'grid' ? (
+          <div className="grid gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {results.map((p) => (
+              <PropertyCard key={p.id} property={p} />
             ))}
           </div>
-          <div className="lg:col-span-6 sticky top-24">
-            <InteractiveMap properties={filteredProperties} />
+        ) : (
+          <div className="grid lg:grid-cols-12 gap-8 items-start">
+            <div className="lg:col-span-7 grid gap-x-6 gap-y-10 sm:grid-cols-2">
+              {results.map((p) => (
+                <PropertyCard key={p.id} property={p} />
+              ))}
+            </div>
+            <div className="lg:col-span-5 lg:sticky lg:top-24 rounded-2xl overflow-hidden">
+              <InteractiveMap properties={results} />
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Filters dialog */}
+      {filtersOpen && (
+        <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/50" onClick={() => setFiltersOpen(false)}>
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Filters"
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white w-full sm:max-w-[640px] max-h-[90vh] rounded-t-3xl sm:rounded-3xl flex flex-col overflow-hidden"
+          >
+            <div className="relative flex items-center justify-center h-16 border-b border-line-soft shrink-0">
+              <button
+                type="button"
+                onClick={() => setFiltersOpen(false)}
+                aria-label="Close"
+                className="absolute left-4 w-8 h-8 rounded-full hover:bg-surface-muted flex items-center justify-center"
+              >
+                <X className="w-4 h-4" />
+              </button>
+              <h2 className="font-semibold text-ink">Filters</h2>
+            </div>
+
+            <div className="overflow-y-auto px-6 divide-y divide-line-soft">
+              <section className="py-6">
+                <h3 className="text-lg font-semibold text-ink">Price per night</h3>
+                <p className="text-sm text-ink-muted mt-1">
+                  Up to {maxPrice === Infinity ? 'any price' : formatINR(sliderValue)}
+                </p>
+                <input
+                  type="range"
+                  min={0}
+                  max={priceCeiling}
+                  step={500}
+                  value={sliderValue}
+                  onChange={(e) =>
+                    setFilterState((prev) => ({ ...prev, priceRange: [prev.priceRange[0], parseInt(e.target.value, 10)] }))
+                  }
+                  className="w-full mt-4 accent-ivy cursor-pointer"
+                  aria-label="Maximum price per night"
+                />
+              </section>
+
+              <section className="py-2">
+                <h3 className="text-lg font-semibold text-ink pt-4">Rooms</h3>
+                <Counter label="Bedrooms" value={filterState.bedrooms} max={8} onChange={(n) => setFilterState((p) => ({ ...p, bedrooms: n }))} />
+                <Counter label="Bathrooms" value={filterState.bathrooms} max={6} onChange={(n) => setFilterState((p) => ({ ...p, bathrooms: n }))} />
+              </section>
+
+              {amenityOptions.length > 0 && (
+                <section className="py-6">
+                  <h3 className="text-lg font-semibold text-ink">Amenities</h3>
+                  <div className="flex flex-wrap gap-2 mt-4">
+                    {amenityOptions.map((a) => {
+                      const on = filterState.amenities.includes(a);
+                      return (
+                        <button
+                          key={a}
+                          type="button"
+                          aria-pressed={on}
+                          onClick={() =>
+                            setFilterState((prev) => ({
+                              ...prev,
+                              amenities: on ? prev.amenities.filter((x) => x !== a) : [...prev.amenities, a],
+                            }))
+                          }
+                          className={`px-4 py-2.5 rounded-full border text-sm transition-colors ${
+                            on ? 'border-ink bg-surface-muted font-semibold text-ink' : 'border-line text-ink hover:border-ink'
+                          }`}
+                        >
+                          {a}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </section>
+              )}
+            </div>
+
+            <div className="flex items-center justify-between px-6 py-4 border-t border-line-soft shrink-0">
+              <button type="button" onClick={resetFilters} className="text-sm font-semibold text-ink underline underline-offset-4">
+                Clear all
+              </button>
+              <button
+                type="button"
+                onClick={() => setFiltersOpen(false)}
+                className="px-6 py-3 rounded-xl bg-ink hover:bg-black text-white text-sm font-semibold"
+              >
+                Show {results.length} {results.length === 1 ? 'stay' : 'stays'}
+              </button>
+            </div>
           </div>
         </div>
       )}

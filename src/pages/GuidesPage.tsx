@@ -32,7 +32,7 @@ function useTitle(title: string) {
   useEffect(() => {
     document.title = `${title} | IvStay`;
     return () => {
-      document.title = 'IvStay | Luxury Villas, Boutique BnBs & Hotels';
+      document.title = 'IvStay | Hand-picked villas, BnBs & hotels';
     };
   }, [title]);
 }

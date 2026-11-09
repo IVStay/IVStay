@@ -1,191 +1,129 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { Heart, ChevronLeft, ChevronRight, Star } from 'lucide-react';
 import { formatINR } from '../../utils/currency';
 import { stayPath } from '../../lib/links';
-import { Heart, Star, ChevronLeft, ChevronRight, MapPin, Users, Bed, Bath } from 'lucide-react';
 import { Property } from '../../types';
-import { Badge } from '../ui/Badge';
 import { useProperties } from '../../context/PropertyContext';
 import { useToast } from '../../context/ToastContext';
 
-interface PropertyCardProps {
-  property: Property;
-}
+const KIND: Record<string, string> = {
+  villa: 'Villa',
+  bnb: 'BnB',
+  hotel: 'Hotel',
+  resort: 'Resort',
+  home_stay: 'Home stay',
+};
 
-export const PropertyCard: React.FC<PropertyCardProps> = ({ property }) => {
+/** A stay in a grid: photo with heart and swipe arrows, then place, name, details and price. */
+export const PropertyCard: React.FC<{ property: Property }> = ({ property }) => {
   const { isWishlisted, toggleWishlist } = useProperties();
   const { showSuccess, showInfo } = useToast();
-  const [currentImgIndex, setCurrentImgIndex] = useState(0);
-  // Carry the current search (dates/guests) through to the detail page
+  const [index, setIndex] = useState(0);
+  // Carry the current search (dates/guests) through to the stay page
   const { search } = useLocation();
-  const detailHref = `${stayPath(property)}${search}`;
+  const href = `${stayPath(property)}${search}`;
+  const photos = property.images.length ? property.images : [''];
+  const saved = isWishlisted(property.id);
 
-  const favorited = isWishlisted(property.id);
-
-  const handlePrevImg = (e: React.MouseEvent) => {
+  const step = (e: React.MouseEvent, delta: number) => {
     e.preventDefault();
     e.stopPropagation();
-    setCurrentImgIndex((prev) => (prev === 0 ? property.images.length - 1 : prev - 1));
+    setIndex((i) => (i + delta + photos.length) % photos.length);
   };
 
-  const handleNextImg = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setCurrentImgIndex((prev) => (prev === property.images.length - 1 ? 0 : prev + 1));
-  };
-
-  const handleWishlistClick = (e: React.MouseEvent) => {
+  const toggleSaved = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     toggleWishlist(property.id);
-    if (!favorited) {
-      showSuccess('Added to Wishlist', `${property.title} saved to your favorites`);
-    } else {
-      showInfo('Removed from Wishlist', `${property.title} removed from saved stays`);
-    }
+    if (saved) showInfo('Removed from saved', property.title);
+    else showSuccess('Saved', `${property.title} is in your saved stays`);
   };
 
+  const details = [
+    KIND[property.property_type] ?? 'Stay',
+    property.bedrooms != null ? `${property.bedrooms} bedroom${property.bedrooms === 1 ? '' : 's'}` : null,
+    `${property.max_guests} guests`,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+
   return (
-    <div className="group relative bg-white rounded-3xl overflow-hidden border border-slate-100 shadow-sm hover:shadow-card-hover transition-all duration-300 flex flex-col">
-      {/* Image Carousel Container */}
-      <div className="relative h-64 sm:h-72 w-full overflow-hidden bg-slate-100">
-        <Link to={detailHref} className="block w-full h-full">
+    <Link to={href} className="group block">
+      <div className="relative aspect-[20/19] overflow-hidden rounded-2xl bg-surface-muted">
+        {photos[index] && (
           <img
-            src={property.images[currentImgIndex] || property.images[0]}
+            src={photos[index]}
             alt={property.title}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
+            loading="lazy"
+            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
           />
-        </Link>
+        )}
 
-        {/* Top Floating Badges */}
-        <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 z-10 pointer-events-none">
-          {property.is_verified && <Badge variant="verified" />}
-          {property.is_featured && <Badge variant="featured" />}
-        </div>
+        {property.is_featured && (
+          <span className="absolute top-3 left-3 px-3 py-1 rounded-full bg-white text-[13px] font-semibold text-ink shadow-sm">
+            IvStay pick
+          </span>
+        )}
 
-        {/* Top Right Favorite Heart Button */}
         <button
-          onClick={handleWishlistClick}
-          className="absolute top-3 right-3 p-2.5 rounded-full bg-white/80 backdrop-blur-md text-slate-700 hover:bg-white transition-all shadow-md z-10 group/btn"
-          aria-label="Toggle wishlist"
+          type="button"
+          onClick={toggleSaved}
+          aria-label={saved ? 'Remove from saved stays' : 'Save this stay'}
+          aria-pressed={saved}
+          className="absolute top-3 right-3 p-1 transition-transform active:scale-90"
         >
           <Heart
-            className={`w-4 h-4 transition-colors ${
-              favorited ? 'fill-rose-500 text-rose-500 scale-110' : 'text-slate-700 group-hover/btn:text-rose-500'
-            }`}
+            className={`w-6 h-6 drop-shadow ${saved ? 'fill-ivy text-white' : 'fill-black/40 text-white'}`}
+            strokeWidth={2}
           />
         </button>
 
-        {/* Carousel Arrow Controls */}
-        {property.images.length > 1 && (
+        {photos.length > 1 && (
           <>
             <button
-              onClick={handlePrevImg}
-              className="absolute left-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-white/80 hover:bg-white text-slate-800 opacity-0 group-hover:opacity-100 transition-opacity shadow-md z-10"
-              aria-label="Previous image"
+              type="button"
+              onClick={(e) => step(e, -1)}
+              aria-label="Previous photo"
+              className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/90 hover:bg-white shadow flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
             >
-              <ChevronLeft className="w-4 h-4" />
+              <ChevronLeft className="w-4 h-4 text-ink" />
             </button>
             <button
-              onClick={handleNextImg}
-              className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-white/80 hover:bg-white text-slate-800 opacity-0 group-hover:opacity-100 transition-opacity shadow-md z-10"
-              aria-label="Next image"
+              type="button"
+              onClick={(e) => step(e, 1)}
+              aria-label="Next photo"
+              className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/90 hover:bg-white shadow flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
             >
-              <ChevronRight className="w-4 h-4" />
+              <ChevronRight className="w-4 h-4 text-ink" />
             </button>
-
-            {/* Pagination Dots */}
-            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 z-10">
-              {property.images.slice(0, 5).map((_, idx) => (
-                <span
-                  key={idx}
-                  className={`h-1.5 rounded-full transition-all ${
-                    idx === currentImgIndex ? 'w-4 bg-white' : 'w-1.5 bg-white/60'
-                  }`}
-                />
+            <div className="absolute bottom-3 inset-x-0 flex justify-center gap-1">
+              {photos.slice(0, 5).map((_, i) => (
+                <span key={i} className={`w-1.5 h-1.5 rounded-full ${i === index % 5 ? 'bg-white' : 'bg-white/55'}`} />
               ))}
             </div>
           </>
         )}
       </div>
 
-      {/* Card Details Body */}
-      <div className="p-5 flex-1 flex flex-col justify-between">
-        <div>
-          {/* Rating & Category tag */}
-          <div className="flex items-center justify-between gap-2 mb-1.5">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
-              {property.category === 'bnbs_and_villas'
-                ? property.property_type === 'bnb'
-                  ? 'Luxury Bed & Breakfast'
-                  : 'Private Villa'
-                : property.category === 'hotels'
-                ? 'Boutique Hotel'
-                : 'Home Stay'}
-            </span>
-            <div className="flex items-center gap-1 text-xs font-bold text-brand-slate">
-              <Star className="w-3.5 h-3.5 fill-brand-gold text-brand-gold" />
-              {property.review_count > 0 ? (
-                <>
-                  <span>{property.rating.toFixed(2)}</span>
-                  <span className="text-slate-400 font-normal">({property.review_count})</span>
-                </>
-              ) : (
-                <span>New</span>
-              )}
-            </div>
-          </div>
-
-          {/* Title */}
-          <Link to={detailHref} className="block group-hover:text-brand-gold transition-colors">
-            <h3 className="font-serif text-lg font-bold text-brand-slate line-clamp-1">
-              {property.title}
-            </h3>
-          </Link>
-
-          {/* Location */}
-          <div className="flex items-center gap-1 text-xs text-slate-500 mt-1">
-            <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-            <span className="truncate">{property.city}, {property.state}</span>
-          </div>
-
-          {/* Specs icons bar */}
-          <div className="flex items-center gap-4 text-xs text-slate-600 mt-3 pt-3 border-t border-slate-100">
-            <div className="flex items-center gap-1" title="Max Guests">
-              <Users className="w-3.5 h-3.5 text-slate-400" />
-              <span>{property.max_guests} Guests</span>
-            </div>
-            {property.bedrooms != null && (
-              <div className="flex items-center gap-1" title="Bedrooms">
-                <Bed className="w-3.5 h-3.5 text-slate-400" />
-                <span>{property.bedrooms} Bedrooms</span>
-              </div>
-            )}
-            {property.bathrooms != null && (
-              <div className="flex items-center gap-1" title="Bathrooms">
-                <Bath className="w-3.5 h-3.5 text-slate-400" />
-                <span>{property.bathrooms} Baths</span>
-              </div>
-            )}
-          </div>
+      <div className="pt-3 text-[15px] leading-snug">
+        <div className="flex items-start justify-between gap-2">
+          <p className="font-semibold text-ink truncate">
+            {property.city}
+            {property.state ? `, ${property.state}` : ''}
+          </p>
+          <p className="flex items-center gap-1 text-ink shrink-0">
+            <Star className="w-3.5 h-3.5 fill-ink text-ink" />
+            {property.review_count > 0 ? property.rating.toFixed(2) : 'New'}
+          </p>
         </div>
-
-        {/* Footer Price & Action */}
-        <div className="flex items-center justify-between pt-4 mt-3 border-t border-slate-100">
-          <div>
-            <span className="font-serif text-xl font-extrabold text-brand-slate">
-              {formatINR(property.price_per_night)}
-            </span>
-            <span className="text-xs text-slate-500"> / night</span>
-          </div>
-          <Link
-            to={detailHref}
-            className="px-4 py-2 rounded-full bg-slate-900 text-white hover:bg-brand-gold text-xs font-semibold transition-all shadow-sm"
-          >
-            Reserve
-          </Link>
-        </div>
+        <p className="text-ink-muted truncate">{property.title}</p>
+        <p className="text-ink-muted truncate">{details}</p>
+        <p className="mt-1.5 text-ink">
+          <span className="font-semibold">{formatINR(property.price_per_night)}</span>
+          <span className="text-ink-muted"> night</span>
+        </p>
       </div>
-    </div>
+    </Link>
   );
 };

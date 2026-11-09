@@ -12,7 +12,7 @@ export const ValueProps = () => {
               <span>HOMES</span>
             </h2>
             <p className={styles.description}>
-              Each of our holiday rentals is chosen for its singularity, blending soul and character.
+              Every stay is chosen by our team for its character, comfort and setting. No endless lists.
             </p>
           </div>
           
@@ -22,17 +22,17 @@ export const ValueProps = () => {
               <span>STAYS</span>
             </h2>
             <p className={styles.description}>
-              From everyday services to once-in-a-lifetime experiences, we personalise every detail of your stay.
+              Tell us what you need, from early check-in to a bonfire night, and we arrange it with the host.
             </p>
           </div>
           
           <div className={styles.item}>
             <h2 className={styles.title}>
-              A LOCAL
-              <span>CONCIERGE</span>
+              A REAL
+              <span>PERSON</span>
             </h2>
             <p className={styles.description}>
-              Across dream destinations, our teams open the doors to highly exclusive locations.
+              Questions before or during your stay? Call or WhatsApp us and talk to someone who knows the place.
             </p>
           </div>
         </div>

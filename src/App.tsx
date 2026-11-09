@@ -9,12 +9,6 @@ import { Navigation } from '@/components/layout/Navigation/Navigation';
 
 // Public Pages
 import HomePagePartner from '@/app/page';
-import VillasPagePartner from '@/app/villas/page';
-import HotelsPagePartner from '@/app/hotels/page';
-import DestinationsPagePartner from '@/app/destinations/page';
-import BlogsPagePartner from '@/app/blogs/page';
-import AboutPagePartner from '@/app/about/page';
-import ContactPagePartner from '@/app/contact/page';
 
 // Stay listing + detail pages (property links across the site point to /stays/:id)
 import { ListingsPage } from './pages/ListingsPage';
@@ -35,6 +29,14 @@ import { AdminPropertiesPage } from './pages/admin/AdminPropertiesPage';
 import { AdminPropertyWizardPage } from './pages/admin/AdminPropertyWizardPage';
 import { AdminBookingsPage } from './pages/admin/AdminBookingsPage';
 import { AdminCustomersPage } from './pages/admin/AdminCustomersPage';
+import { AdminEnquiriesPage } from './pages/admin/AdminEnquiriesPage';
+import { ContactPage } from './pages/ContactPage';
+import { AboutPage } from './pages/AboutPage';
+import { DestinationsPage } from './pages/DestinationsPage';
+import { GuidesPage, GuideArticlePage } from './pages/GuidesPage';
+import { CategoryPage } from './pages/CategoryPage';
+import { SavedPage } from './pages/SavedPage';
+import { NotFoundPage } from './pages/NotFoundPage';
 
 // Old /villas/:id and /hotels/:id links go to the single canonical stay page.
 const RedirectToStay: React.FC = () => {
@@ -55,12 +57,34 @@ const AppContent: React.FC = () => {
         <Routes>
           {/* Public Routes */}
           <Route path="/" element={<HomePagePartner />} />
-          <Route path="/villas" element={<VillasPagePartner />} />
-          <Route path="/hotels" element={<HotelsPagePartner />} />
-          <Route path="/destinations" element={<DestinationsPagePartner />} />
-          <Route path="/blogs" element={<BlogsPagePartner />} />
-          <Route path="/about" element={<AboutPagePartner />} />
-          <Route path="/contact" element={<ContactPagePartner />} />
+          <Route
+            path="/villas"
+            element={
+              <CategoryPage
+                eyebrow="Villas & BnBs"
+                title="Villas, BnBs and home stays"
+                intro="Whole homes and cosy BnBs for families and friends, each one chosen for its setting and comfort."
+                match={(p) => p.category !== 'hotels'}
+              />
+            }
+          />
+          <Route
+            path="/hotels"
+            element={
+              <CategoryPage
+                eyebrow="Hotels & Resorts"
+                title="Boutique hotels and resorts"
+                intro="Small hotels and resorts with proper service, picked for character rather than size."
+                match={(p) => p.category === 'hotels'}
+              />
+            }
+          />
+          <Route path="/destinations" element={<DestinationsPage />} />
+          <Route path="/blogs" element={<GuidesPage />} />
+          <Route path="/blogs/:slug" element={<GuideArticlePage />} />
+          <Route path="/about" element={<AboutPage />} />
+          <Route path="/contact" element={<ContactPage />} />
+          <Route path="/saved" element={<SavedPage />} />
           <Route path="/stays" element={<ListingsPage />} />
           <Route path="/stays/:id" element={<PropertyDetailsPage />} />
           <Route path="/villas/:id" element={<RedirectToStay />} />
@@ -83,6 +107,7 @@ const AppContent: React.FC = () => {
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<Navigate to="/admin/dashboard" replace />} />
             <Route path="customers" element={<AdminCustomersPage />} />
+            <Route path="enquiries" element={<AdminEnquiriesPage />} />
             <Route path="dashboard" element={<AdminDashboardPage />} />
             <Route path="properties" element={<AdminPropertiesPage />} />
             <Route path="properties/new" element={<AdminPropertyWizardPage />} />
@@ -91,7 +116,7 @@ const AppContent: React.FC = () => {
           </Route>
 
           {/* Fallback */}
-          <Route path="*" element={<HomePagePartner />} />
+          <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </main>
       {!isAdminRoute && <SiteFooter />}

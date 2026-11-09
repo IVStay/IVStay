@@ -498,3 +498,58 @@ export async function fetchCustomers(): Promise<Customer[]> {
   return (data ?? []).map((row) => ({ ...row, booking_count: Number(row.booking_count) }));
 }
 
+
+// ---------------------------------------------------------------------------
+// Contact page and "List your property" messages
+// ---------------------------------------------------------------------------
+
+export type EnquiryKind = 'contact' | 'list_property' | 'general';
+export type EnquiryStatus = 'new' | 'in_progress' | 'closed';
+
+export interface Enquiry {
+  id: string;
+  kind: EnquiryKind;
+  name: string;
+  phone: string | null;
+  email: string | null;
+  message: string | null;
+  status: EnquiryStatus;
+  admin_notes: string | null;
+  created_at: string;
+}
+
+/** Saves a message for the team and asks for the email alert (in the background). */
+export async function submitEnquiry(input: {
+  kind: EnquiryKind;
+  name: string;
+  phone: string;
+  email?: string;
+  message?: string;
+}): Promise<void> {
+  const { data, error } = await db().rpc('submit_enquiry', {
+    p_kind: input.kind,
+    p_name: input.name,
+    p_phone: input.phone,
+    p_email: input.email || undefined,
+    p_message: input.message || undefined,
+  });
+  if (error) throw friendlyError(error);
+  void db()
+    .functions.invoke('notify-booking', { body: { enquiry_id: data } })
+    .catch((e: unknown) => console.warn('Message alert email was not sent:', e));
+}
+
+/** All messages, newest first (admins only). */
+export async function fetchEnquiries(): Promise<Enquiry[]> {
+  const { data, error } = await db()
+    .from('enquiries')
+    .select('id, kind, name, phone, email, message, status, admin_notes, created_at')
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as Enquiry[];
+}
+
+export async function updateEnquiry(id: string, patch: { status?: EnquiryStatus; admin_notes?: string | null }) {
+  const { error } = await db().from('enquiries').update(patch).eq('id', id);
+  if (error) throw error;
+}

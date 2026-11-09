@@ -27,6 +27,8 @@ export const FeaturedVillas = ({ initialFilter = 'villas', showFilters = true }:
   const { properties, loading, isWishlisted, toggleWishlist } = useProperties();
   const [filter, setFilter] = useState<StayFilter>(initialFilter);
 
+  const cities = [...new Set(properties.filter((p) => p.status === 'active').map((p) => p.city))];
+
   const activeStays = properties.filter((p) => {
     if (p.status !== 'active') return false;
     if (filter === 'hotels') return p.category === 'hotels';
@@ -39,7 +41,11 @@ export const FeaturedVillas = ({ initialFilter = 'villas', showFilters = true }:
       <div className="container">
         <div className={styles.header}>
           <h2 className={styles.title}>A few houses we love</h2>
-          <p className={styles.subtitle}>Hand-picked retreats across Alibaug and Karjat — from walled garden villas to small boutique hotels and quiet resorts. Each one chosen for the way it makes a weekend feel.</p>
+          <p className={styles.subtitle}>
+            {cities.length
+              ? `Hand-picked stays in ${cities.length === 1 ? cities[0] : `${cities.slice(0, -1).join(', ')} and ${cities[cities.length - 1]}`}, from private villas to small boutique hotels. Each one chosen for the way it makes a weekend feel.`
+              : 'Hand-picked villas, BnBs and boutique hotels, each one chosen for the way it makes a weekend feel.'}
+          </p>
 
           {showFilters && (
             <div className={styles.filters} role="tablist" aria-label="Filter stays">

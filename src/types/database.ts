@@ -65,14 +65,14 @@ isOneToOne: false
                   ]
                 },"enquiries": {
                   Row: {
-                    "created_at": string,"email": string | null,"id": string,"kind": string,"message": string | null,"name": string,"phone": string | null,"property_id": string | null,"status": string
+                    "admin_notes": string | null,"created_at": string,"email": string | null,"id": string,"kind": string,"message": string | null,"name": string,"notified_at": string | null,"phone": string | null,"property_id": string | null,"status": string,"user_id": string | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "created_at"?: string,"email"?: string | null,"id"?: string,"kind": string,"message"?: string | null,"name": string,"phone"?: string | null,"property_id"?: string | null,"status"?: string
+                    "admin_notes"?: string | null,"created_at"?: string,"email"?: string | null,"id"?: string,"kind": string,"message"?: string | null,"name": string,"notified_at"?: string | null,"phone"?: string | null,"property_id"?: string | null,"status"?: string,"user_id"?: string | null
                   }
                   Update: {
-                    "created_at"?: string,"email"?: string | null,"id"?: string,"kind"?: string,"message"?: string | null,"name"?: string,"phone"?: string | null,"property_id"?: string | null,"status"?: string
+                    "admin_notes"?: string | null,"created_at"?: string,"email"?: string | null,"id"?: string,"kind"?: string,"message"?: string | null,"name"?: string,"notified_at"?: string | null,"phone"?: string | null,"property_id"?: string | null,"status"?: string,"user_id"?: string | null
                   }
                   Relationships: [
                     {
@@ -216,6 +216,9 @@ isOneToOne: false
                            },
             "normalize_phone":
 { Args: { "p_phone": string }; Returns: string
+                           },
+            "submit_enquiry":
+{ Args: { "p_email"?: string,"p_kind": string,"p_message"?: string,"p_name": string,"p_phone": string,"p_property_id"?: string }; Returns: string
                            },
             "my_bookings":
 { Args: Record<PropertyKey, never>; Returns: {

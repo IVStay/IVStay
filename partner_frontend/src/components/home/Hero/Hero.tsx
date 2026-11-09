@@ -90,7 +90,7 @@ export const Hero = () => {
 
       <div className={styles.content}>
         <h1 className={styles.title} style={{ textTransform: 'none', letterSpacing: 'normal' }}>
-          Stay in the World&apos;s Most Remarkable Vacation Homes.
+          Hand-picked villas, BnBs and hotels for your next getaway.
         </h1>
 
         {/* Plain GET form: submits to /stays?destination=…&checkIn=…&guests=… */}
@@ -99,7 +99,7 @@ export const Hero = () => {
             <input
               type="text"
               name="destination"
-              placeholder="Add destination"
+              placeholder="Where to? e.g. Kasauli"
               aria-label="Destination"
               className={styles.searchField}
             />

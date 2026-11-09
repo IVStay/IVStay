@@ -1,4 +1,5 @@
-// Sends the email alerts for a new website booking request:
+// Sends the email alerts for website booking requests and contact / "List your property" messages.
+// For a booking request:
 //   * to the IvStay team: guest details with one-tap WhatsApp / call / email links
 //   * to the guest (when they gave an email): "we got your request" with the reference
 //
@@ -6,7 +7,7 @@
 // alerted once: the function claims it by setting bookings.notified_at, and only requests made in
 // the last hour can be claimed, so calling it again (or with someone else's reference) does nothing.
 //
-// Secrets (set with scripts/setup-email.ps1): GMAIL_USER, GMAIL_APP_PASSWORD, optional TEAM_EMAIL.
+// Secrets (set with scripts/setup-accounts.ps1): GMAIL_USER, GMAIL_APP_PASSWORD, optional TEAM_EMAIL.
 // Supabase provides SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
@@ -52,18 +53,76 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   if (req.method !== 'POST') return json({ error: 'Use POST' }, 405);
 
-  let reference = '';
+  let body: { reference?: unknown; enquiry_id?: unknown } = {};
   try {
-    reference = String((await req.json())?.reference ?? '').trim();
+    body = (await req.json()) ?? {};
   } catch {
     /* handled below */
   }
-  if (!/^IVS-\d{1,9}$/.test(reference)) return json({ error: 'A booking reference is required' }, 400);
+  const reference = String(body.reference ?? '').trim();
+  const enquiryId = String(body.enquiry_id ?? '').trim();
+  const isEnquiry = /^[0-9a-f-]{36}$/i.test(enquiryId);
+  if (!isEnquiry && !/^IVS-\d{1,9}$/.test(reference)) {
+    return json({ error: 'A booking reference or enquiry id is required' }, 400);
+  }
   if (!GMAIL_USER || !GMAIL_APP_PASSWORD) return json({ error: 'Email sending is not set up yet' }, 503);
 
   const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, {
     auth: { persistSession: false },
   });
+  const mailer = nodemailer.createTransport({
+    host: 'smtp.gmail.com',
+    port: 465, // Edge Functions can't use port 587; Gmail's SSL port works
+    secure: true,
+    auth: { user: GMAIL_USER, pass: GMAIL_APP_PASSWORD },
+  });
+
+  // ---- Contact page / "List your property" messages -------------------------
+  if (isEnquiry) {
+    const { data: e, error: claimError } = await admin
+      .from('enquiries')
+      .update({ notified_at: new Date().toISOString() })
+      .eq('id', enquiryId)
+      .is('notified_at', null)
+      .gt('created_at', new Date(Date.now() - 60 * 60 * 1000).toISOString())
+      .select('id, kind, name, phone, email, message, created_at')
+      .maybeSingle();
+    if (claimError) return json({ error: claimError.message }, 500);
+    if (!e) return json({ sent: false, reason: 'Already alerted, too old or not found' });
+
+    const kindLabel = e.kind === 'list_property' ? 'List your property' : 'Contact message';
+    const digits = (e.phone ?? '').replace(/\D/g, '');
+    const reply = encodeURIComponent(`Hi ${e.name.split(/\s+/)[0]}, this is IvStay replying to your message. `);
+    const html = layout(
+      `New ${kindLabel.toLowerCase()}`,
+      `<table style="border-collapse:collapse;margin-bottom:16px">` +
+        row('Type', esc(kindLabel)) +
+        row('Name', esc(e.name)) +
+        row('Phone', e.phone ? esc(e.phone) : '—') +
+        row('Email', e.email ? esc(e.email) : '—') +
+        row('Message', e.message ? esc(e.message).replace(/\n/g, '<br>') : '—') +
+        `</table>` +
+        (digits ? button(`https://wa.me/${digits}?text=${reply}`, 'WhatsApp', '#16a34a') : '') +
+        (e.phone ? button(`tel:${e.phone}`, 'Call', '#111827') : '') +
+        (e.email ? button(`mailto:${e.email}`, 'Email', '#6b7280') : '') +
+        `<p style="font-size:13px;margin-top:16px"><a href="${esc(SITE_URL)}/admin/enquiries" style="color:#b7791f">Open messages in the dashboard</a></p>`
+    );
+    try {
+      await mailer.sendMail({
+        from: `"IvStay website" <${GMAIL_USER}>`,
+        to: TEAM_EMAIL,
+        replyTo: e.email || undefined,
+        subject: `${kindLabel}: ${e.name}${e.phone ? ` (${e.phone})` : ''}`,
+        html,
+      });
+    } catch (sendError) {
+      await admin.from('enquiries').update({ notified_at: null }).eq('id', e.id);
+      return json({ error: `Email failed: ${(sendError as Error).message}` }, 502);
+    }
+    return json({ sent: true });
+  }
+
+  // ---- Booking requests --------------------------------------------------------
 
   // Claim the request so it is only alerted once
   const { data: claimed, error } = await admin
@@ -119,13 +178,6 @@ Deno.serve(async (req) => {
     `<p style="font-size:14px;line-height:1.6">Hi ${esc(firstName)}, thanks for your request. We're checking availability with the host and will get back to you on WhatsApp${b.guest_phone ? ` (${esc(b.guest_phone)})` : ''} or email shortly. Nothing has been charged.</p>` +
     details +
     `<p style="font-size:14px;line-height:1.6">Questions? Just reply to this email or message us on WhatsApp, quoting <b>${esc(b.reference)}</b>.</p>`;
-
-  const mailer = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 465, // Edge Functions can't use port 587; Gmail's SSL port works
-    secure: true,
-    auth: { user: GMAIL_USER, pass: GMAIL_APP_PASSWORD },
-  });
 
   try {
     await mailer.sendMail({

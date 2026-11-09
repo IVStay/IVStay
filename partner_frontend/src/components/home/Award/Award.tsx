@@ -1,4 +1,5 @@
 import React from 'react';
+import Link from 'next/link';
 import styles from './Award.module.css';
 
 export const Award = () => {
@@ -11,9 +12,11 @@ export const Award = () => {
           </svg>
           <h2 className={styles.title}>The IVStay Standard</h2>
           <p className={styles.description}>
-            We rigorously review every single home available. We only accept the top 3% in any destination. If it doesn't meet our exhaustive 150-point criteria, it's not an IVStay.
+            We only list places we would happily stay in ourselves: clean, comfortable, honestly described and run by hosts who care. If a stay doesn't live up to its listing, tell us and we'll put it right.
           </p>
-          <button className={styles.button}>Read our criteria</button>
+          <Link href="/about" className={styles.button} style={{ display: 'inline-block' }}>
+            How we choose our stays
+          </Link>
         </div>
       </div>
     </section>

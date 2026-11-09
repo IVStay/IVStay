@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import styles from './Navigation.module.css';
-import { CONTACT_PHONE, whatsappLink } from '@src/config/contact';
+import { CONTACT_PHONE } from '@src/config/contact';
 import { useAuth } from '@src/context/AuthContext';
 
 // SVG Icons
@@ -51,7 +51,7 @@ const NAV_LINKS = [
   { href: '/contact', label: 'Contact' },
 ];
 
-const LIST_PROPERTY_HREF = whatsappLink("Hi IvStay, I'd like to list my property on IvStay.");
+const LIST_PROPERTY_HREF = '/contact?type=list';
 
 export const Navigation = () => {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -83,16 +83,12 @@ export const Navigation = () => {
           <Link href="/stays" className={styles.iconButton} aria-label="Search stays" onClick={closeMenu}>
             <SearchIcon />
           </Link>
-          {/* Favorites need guest accounts (backend) before they can do anything */}
-          <button className={`${styles.iconButton} ${styles.hideOnMobile}`} aria-label="Favorites"><HeartIcon /></button>
-          <a
-            href={LIST_PROPERTY_HREF}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={`${styles.outlineBtn} ${styles.hideOnMobile}`}
-          >
+          <Link href="/saved" className={`${styles.iconButton} ${styles.hideOnMobile}`} aria-label="Saved stays" onClick={closeMenu}>
+            <HeartIcon />
+          </Link>
+          <Link href={LIST_PROPERTY_HREF} className={`${styles.outlineBtn} ${styles.hideOnMobile}`} onClick={closeMenu}>
             List your property
-          </a>
+          </Link>
           <Link href={accountHref} className={`${styles.outlineBtn} ${styles.hideOnMobile}`} onClick={closeMenu}>
             <UserIcon /> {accountLabel}
           </Link>
@@ -120,15 +116,12 @@ export const Navigation = () => {
               {label}
             </Link>
           ))}
-          <a
-            href={LIST_PROPERTY_HREF}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={styles.mobileLink}
-            onClick={closeMenu}
-          >
+          <Link href="/saved" className={styles.mobileLink} onClick={closeMenu}>
+            Saved stays
+          </Link>
+          <Link href={LIST_PROPERTY_HREF} className={styles.mobileLink} onClick={closeMenu}>
             List your property
-          </a>
+          </Link>
           <Link href={accountHref} className={styles.mobileLink} onClick={closeMenu}>
             {user ? 'My account' : 'Sign In'}
           </Link>

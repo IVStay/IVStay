@@ -4,7 +4,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(63);
+select plan(67);
 
 -- ---------------------------------------------------------------------------
 -- Fixtures (inserted as the database owner, so access rules don't apply here)
@@ -105,6 +105,20 @@ select throws_ok($$ select * from public.bookings $$, '42501', null, 'Visitors c
 select throws_ok($$ select * from public.owners $$, '42501', null, 'Visitors cannot read owners');
 select throws_ok($$ select * from public.payments $$, '42501', null, 'Visitors cannot read payments');
 select throws_ok($$ select * from public.enquiries $$, '42501', null, 'Visitors cannot read enquiries');
+select ok(
+  public.submit_enquiry('list_property', 'Meera Host', '98765 11111', 'meera@example.com', 'I own a cottage in Kasauli.') is not null,
+  'Visitors can send a contact / list-your-property message'
+);
+select throws_ok(
+  $$ select public.submit_enquiry('contact', 'No Phone', null, 'x@example.com', 'Hello') $$,
+  '22023', null,
+  'A contact message needs a phone number'
+);
+select throws_ok(
+  $$ select public.submit_enquiry('spam', 'Someone', '98765 11111', null, 'Hello') $$,
+  '22023', null,
+  'Unknown message types are refused'
+);
 select throws_ok($$ select * from public.admin_list_customers() $$, '42501', null, 'Visitors cannot list customers');
 
 -- Phone numbers (free checks)
@@ -231,6 +245,11 @@ select is(
   (select count(*)::int from public.admin_list_customers()),
   4,
   'A verified admin sees every customer account, and not admin accounts'
+);
+select results_eq(
+  $$ select kind, phone from public.enquiries where name = 'Meera Host' $$,
+  $$ values ('list_property', '+919876511111') $$,
+  'A verified admin sees contact messages, with a tidied phone number'
 );
 select ok(
   public.admin_set_phone_verified('aaaaaaaa-0000-0000-0000-000000000004', true) is not null,

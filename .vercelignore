@@ -10,3 +10,4 @@ dist/
 supabase/.temp/
 supabase/.branches/
 *.timestamp-*.mjs
+client_secret_*.json

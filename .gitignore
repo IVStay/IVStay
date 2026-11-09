@@ -33,3 +33,6 @@ npm-debug.log*
 
 .vercel
 .env*
+
+# Google OAuth client files downloaded from Google Cloud (contain the client secret)
+client_secret_*.json
